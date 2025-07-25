@@ -26,3 +26,17 @@ Now you can call `panel serve ./src/index.py` !
 - the `launcher.spec` should be configured to work fine
 - `pyinstaller launcher.spec --noconfirm` to build .exe file
 [ ] Problem with embedding the logo
+
+```powershell
+pyinstaller `
+--name launcher `
+--console `
+--add-data "src/index.py;src/." `
+--add-data "src/BrimView.png;src/." `
+--hidden-import brimfile `
+--hidden-import bls_panel_app_widgets `
+--hidden-import pandas `
+--copy-metadata pandas `
+--onefile `
+src/launcher.py
+```
