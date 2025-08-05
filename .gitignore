@@ -2,3 +2,4 @@ dist/*
 build/*
 pyodide/*
 my_cache.sqlite
+.env
