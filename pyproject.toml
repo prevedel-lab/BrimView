@@ -38,6 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 processing = ["HDF5_BLS_treat", "scipy"]
 localfile = ["tkinterdnd2"]
+remote-store = ["fsspec", "brimfile[remote-store]"]
 
 [project.urls]
 Homepage = "https://github.com/prevedel-lab/BrimView-widgets"
