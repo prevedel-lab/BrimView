@@ -3,13 +3,11 @@ requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/__init__.py"
+path = "brimview_widgets/__init__.py"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
 
 [project]
-name = "BrimView-widgets"
+name = "Brimview_widgets"
 dynamic  = ["version"]
 authors = [
     { name = "Carlo Bevilacqua", email = "carlo.bevilacqua@embl.de" },
@@ -32,7 +30,7 @@ license = "LGPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
   "panel",
-  "brimfile",
+  "brimfile[export-tiff]",
   "holoviews",
   "xarray"
 ]
