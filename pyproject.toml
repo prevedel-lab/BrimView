@@ -2,14 +2,20 @@
 requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "src/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
 [project]
 name = "BrimView-widgets"
-version = "0.0.3"
+dynamic  = ["version"]
 authors = [
     { name = "Carlo Bevilacqua", email = "carlo.bevilacqua@embl.de" },
     { name = "Sebastian Hambura", email = "sebastian.hambura@embl.de" },
 ]
-description = "Widget to display Brimfile data in a Panel web application"
+description = "Widget to display Brimfile data in a Panel application"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
@@ -24,6 +30,16 @@ classifiers = [
 ]
 license = "LGPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
+dependencies = [
+  "panel",
+  "brimfile",
+  "holoviews",
+  "xarray"
+]
+
+[project.optional-dependencies]
+processing = ["HDF5_BLS_treat", "scipy"]
+localfile = ["tkinterdnd2"]
 
 [project.urls]
 Homepage = "https://github.com/prevedel-lab/BrimView-widgets"

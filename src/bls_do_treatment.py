@@ -10,7 +10,7 @@ import brimfile as bls
 from HDF5_BLS_treat import treat as bls_treat
 import scipy.optimize
 
-from bls_panel_app_widgets.utils import catch_and_notify
+from .utils import catch_and_notify
 
 from .progress_widget import ProgressWidget
 from .bls_file_input import BlsFileInput

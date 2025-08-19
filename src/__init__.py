@@ -1,3 +1,5 @@
+__version__ = "0.4.0"
+
 import sys
 
 from .bls_file_input import BlsFileInput

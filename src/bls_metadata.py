@@ -4,7 +4,7 @@ import pandas as pd
 
 import brimfile as bls
 
-from bls_panel_app_widgets.bls_file_input import BlsFileInput
+from .bls_file_input import BlsFileInput
 
 class BlsMetadata(pn.viewable.Viewer):
     """
