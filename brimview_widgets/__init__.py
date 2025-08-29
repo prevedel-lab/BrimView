@@ -6,6 +6,7 @@ from .bls_file_input import BlsFileInput
 from .bls_data_visualizer import BlsDataVisualizer
 from .bls_spectrum import BlsSpectrumVisualizer
 from .s3file_selector import S3FileSelector
+from . sampledata_loader import SampledataLoader
 from .bls_metadata import BlsMetadata
 
 # Keep treatment widget out of the wasm package
