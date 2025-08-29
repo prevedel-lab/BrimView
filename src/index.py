@@ -139,6 +139,14 @@ async def build_ui():
             )
         )
 
+        sampledata_selector = brimview_widgets.SampledataLoader()
+        sampledata_selector.set_update_function(
+            lambda file_path: FileSelector.external_file_update(
+                # In pyodide, bls.File expect the param to already be a correct zarr obj
+               load_s3_file(file_path)
+            )
+        )
+
         file_widget = pn.layout.FlexBox(js_file_widget, s3_file_selector)
 
         # Creating the treatment widget
@@ -153,6 +161,12 @@ async def build_ui():
         file_widget = brimview_widgets.TinkerFileSelector()
         FileSelector = brimview_widgets.BlsFileInput()
         file_widget.set_update_function(
+            lambda file_path: FileSelector.external_file_update(
+                bls.File(file_path, mode="a")
+            )
+        )
+        sampledata_selector = brimview_widgets.SampledataLoader()
+        sampledata_selector.set_update_function(
             lambda file_path: FileSelector.external_file_update(
                 bls.File(file_path, mode="a")
             )
@@ -206,6 +220,7 @@ async def build_ui():
     # Populate the sidebar
     sidebar.append(file_widget)
     sidebar.append(FileSelector)
+    sidebar.append(sampledata_selector)
     sidebar.append(pn.VSpacer())
 
     print("Done building UI")
