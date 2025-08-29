@@ -84,7 +84,7 @@ def replace_pyodide_version(js_path, new_version):
 # === Settings ===
 project_file = "./src/index.py"
 output_dir = "pyodide"
-inject_mock_packages = [("zarr", "3.1.2")]
+inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
 overwrite_package_path = [
     ("brimfile", "toAbsoluteUrl('./brimfile-1.1.2-py2.py3-none-any.whl')"),
     #("brimfile", "'http://localhost:8000/pyodide/brimfile-1.1.1-py2.py3-none-any.whl'"),
