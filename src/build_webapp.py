@@ -97,7 +97,6 @@ function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
   return new URL(relativePath, baseUrl).href; \
 }"
 
-zarrjs_init = "init_zarr_wrapper();"
 fileinput_clause = " else if (msg.type === 'load_file') {console.log('[From worker - got \"load_file\" msg]'); loadZarrFile(msg.file); self.postMessage({ type: 'file_loaded'});} "
 
 
@@ -148,10 +147,6 @@ match = re.search(pattern, patched_body)
 
 if not match:
     raise RuntimeError("❌ Could not find 'await self.pyodide.runPythonAsync(code)' block to inject before.")
-
-# Insert function call before await line
-injected_block = f"{zarrjs_init}\n  {match.group(1)}"
-patched_body = patched_body[:match.start()] + injected_block + patched_body[match.end():]
 
 # === Step 4: Inject the conditional clause for the file input
 print(">> Injecting function call into Worker...")
