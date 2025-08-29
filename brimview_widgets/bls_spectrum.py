@@ -1,3 +1,4 @@
+import asyncio
 from enum import Enum
 import tempfile
 import pandas as pd
@@ -11,6 +12,10 @@ import yaml
 import time
 import brimfile as bls
 from .bls_data_visualizer import BlsDataVisualizer
+
+from panel.widgets.base import WidgetBase
+from panel.custom import PyComponent
+from .types import bls_param
 
 
 def _convert_numpy(obj):
@@ -28,7 +33,7 @@ def _convert_numpy(obj):
         return obj
 
 
-class BlsSpectrumVisualizer(pn.viewable.Viewer):
+class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     """Class to display a spectrum from a pixel in the image."""
 
     text = param.String(
@@ -60,12 +65,20 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
     )
     fit_type = param.Selector(default=Fits.Lorentzian, objects=Fits)
 
-    bls_file = param.ClassSelector(class_=bls.File, default=None, allow_refs=True)
-    bls_data = param.ClassSelector(
-        class_=bls.Data, default=None, allow_refs=True, precedence=-1
-    )
-    bls_analysis = param.ClassSelector(
-        class_=bls.Data.AnalysisResults, allow_refs=True, precedence=-1
+    # bls_file = param.ClassSelector(class_=bls.File, default=None, allow_refs=True)
+    # bls_data = param.ClassSelector(
+    #     class_=bls.Data, default=None, allow_refs=True, precedence=-1
+    # )
+    # bls_analysis = param.ClassSelector(
+    #     class_=bls.Data.AnalysisResults, allow_refs=True, precedence=-1
+    # )
+
+    value = param.ClassSelector(
+        class_=bls_param,
+        default=None,
+        precedence=-1,
+        doc="BLS file/data/analysis",
+        allow_refs=True,
     )
 
     results_at_point = param.Dict(label="Result values at this point", precedence=-1)
@@ -86,9 +99,16 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
 
         # Reference to the "main" plot_click
         self.dataset_zyx_coord = result_plot.param.dataset_zyx_click
-        self.bls_file: bls.File = result_plot.param.bls_file
-        self.bls_data: bls.Data = result_plot.param.bls_data
-        self.bls_analysis: bls.Data.AnalysisResults = result_plot.param.bls_analysis
+        # self.bls_file: bls.File = result_plot.param.bls_file
+        # self.bls_data: bls.Data = result_plot.param.bls_data
+        # self.bls_analysis: bls.Data.AnalysisResults = result_plot.param.bls_analysis
+
+        # Test
+        self.value: bls_param = bls_param(
+            file=result_plot.param.bls_file,
+            data=result_plot.param.bls_data,
+            analysis=result_plot.param.bls_analysis,
+        )
 
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
         if not self.display_fit:
@@ -116,30 +136,30 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
             return amplitude * (eta * l + (1 - eta) * g) + offset
 
         fits = {}
-        for peak in self.bls_analysis.list_existing_peak_types():
+        for peak in self.value.analysis.list_existing_peak_types():
             try:
-                width = self.bls_analysis.get_image(
+                width = self.value.analysis.get_image(
                     qt=bls.Data.AnalysisResults.Quantity.Width, pt=peak
                 )[0][z, y, x]
             except Exception as e:
                 print(f"Error getting width for peak {peak.name}: {e}")
                 width = None
             try:
-                shift = self.bls_analysis.get_image(
+                shift = self.value.analysis.get_image(
                     qt=bls.Data.AnalysisResults.Quantity.Shift, pt=peak
                 )[0][z, y, x]
             except Exception as e:
                 print(f"Error getting shift for peak {peak.name}: {e}")
                 shift = None
             try:
-                amplitude = self.bls_analysis.get_image(
+                amplitude = self.value.analysis.get_image(
                     qt=bls.Data.AnalysisResults.Quantity.Amplitude, pt=peak
                 )[0][z, y, x]
             except Exception as e:
                 print(f"Error getting amplitude for peak {peak.name}: {e}")
                 amplitude = None
             try:
-                offset = self.bls_analysis.get_image(
+                offset = self.value.analysis.get_image(
                     qt=bls.Data.AnalysisResults.Quantity.Offset, pt=peak
                 )[0][z, y, x]
             except Exception as e:
@@ -178,50 +198,58 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
 
         return curves
 
-    @param.depends("dataset_zyx_coord", watch=True)
+    @pn.depends("dataset_zyx_coord", watch=True, on_init=False)
     def retrieve_point_rawdata(self):
-        if self.busy:
-            # TODO: potentially, make this a modal popup
-            print("Widget is busy, skipping data retrieval.")
-            return
-        self.busy = True
+        self.loading = True
+        now = time.time()
+        print(f"retrieve_point_rawdata at {now:.4f} seconds")    
+       
         (z, y, x) = self.get_coordinates()
-
-        if self.bls_data is not None:
+        if self.value is not None and self.value.data is not None:
             result = {}
 
-            self.bls_spectrum_in_image = self.bls_data.get_spectrum_in_image((z, y, x))
+            self.bls_spectrum_in_image = self.value.data.get_spectrum_in_image(
+                (z, y, x)
+            )
 
-            for quantity in self.bls_analysis.list_existing_quantities():
+            for quantity in self.value.analysis.list_existing_quantities():
 
                 result[quantity.name] = {}
                 values = []
-                peak_types = list(self.bls_analysis.list_existing_peak_types())
+                peak_types = list(self.value.analysis.list_existing_peak_types())
                 peak_types.append(bls.Data.AnalysisResults.PeakType.average)
                 for peak in peak_types:
                     try:
-                        value = self.bls_analysis.get_quantity_at_pixel(
+                        value = self.value.analysis.get_quantity_at_pixel(
                             (z, y, x), quantity, peak
                         )
                         # TODO: change this later on
                         if peak == bls.Data.AnalysisResults.PeakType.average:
-                            unit = self.bls_analysis.get_units(quantity, peak_types[0])
+                            unit = self.value.analysis.get_units(
+                                quantity, peak_types[0]
+                            )
                         else:
-                            unit = self.bls_analysis.get_units(quantity, peak)
+                            unit = self.value.analysis.get_units(quantity, peak)
                     except Exception as e:
                         print(f"Error getting quantity at pixel ({x=}, {y=}): {e}")
                         value = None
                         unit = None
-                    result[quantity.name][peak.name] = bls.Metadata.Item(value, unit)
+                    result[quantity.name][peak.name] = bls.Metadata.Item(
+                        value, unit
+                    )
 
                     if value is not None:  # To compute the average
                         values.append(value)
 
             self.results_at_point = result
 
-        else: 
+        else:
             self.bls_spectrum_in_image = None
-        self.busy = False
+
+        #self.loading = False
+        now = time.time()
+        print(f"retrieve_point_rawdata at {now:.4f} seconds [done]")
+        self.loading = False
 
     @param.depends("results_at_point", watch=True)
     def result_widget(self):
@@ -244,14 +272,21 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
         df = pd.DataFrame(rows, columns=["Parameter", "Value", "Unit", "Quantity"])
         self.quantity_tabulator.value = df
 
+
+
     # TODO watch=true for side effect ?
-    @param.depends("retrieve_point_rawdata", "fitted_curves", "bls_data", on_init=False)
+    @pn.depends("results_at_point", "fitted_curves", "value", on_init=False)
     def plot_spectrum(self):
+        self.loading = True
         now = time.time()
-        print(f"Retrieving spectrum at {now:.4f} seconds")
+        print(f"plot_spectrum at {now:.4f} seconds")
         (z, y, x) = self.get_coordinates()
         # Generate a fake spectrum for demonstration purposes
-        if self.bls_data is not None and self.bls_spectrum_in_image is not None:
+        if (
+            self.value is not None
+            and self.value.data is not None
+            and self.bls_spectrum_in_image is not None
+        ):
             (PSD, frequency, PSD_units, frequency_units) = self.bls_spectrum_in_image
             x_range = np.arange(np.nanmin(frequency), np.nanmax(frequency), 0.1)
             curves = self.fitted_curves(x_range, z, y, x)
@@ -283,6 +318,8 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
         h.extend(curves)
 
         print(f"Creating holoview object took {time.time() - now:.4f} seconds")
+        self.loading = False
+
         return hv.Overlay(h).opts(
             axiswise=True,
             legend_position="bottom",
@@ -292,7 +329,9 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
 
     def _export_experiment_metadata(self) -> str:
         full_metadata = {}
-        for type_name, type_dict in self.bls_data.get_metadata().all_to_dict().items():
+        for type_name, type_dict in (
+            self.value.data.get_metadata().all_to_dict().items()
+        ):
             full_metadata[type_name] = {}
             # metadata_dict = metadata.to_dict(type)
             for parameter, item in type_dict.items():
@@ -301,9 +340,9 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
                 full_metadata[type_name][parameter]["units"] = item.units
 
         metadata_dict = {
-            "filename": self.bls_file.filename,
+            "filename": self.value.file.filename,
             "dataset": {
-                "name": self.bls_data.get_name(),
+                "name": self.value.data.get_name(),
                 "metadata": full_metadata,
             },
         }
@@ -344,8 +383,8 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
         (z, y, x) = self.get_coordinates()
 
         # Get spectrum data
-        if self.bls_data is not None:
-            PSD, frequency, PSD_unit, freq_unit = self.bls_data.get_spectrum_in_image(
+        if self.value.data is not None:
+            PSD, frequency, PSD_unit, freq_unit = self.value.data.get_spectrum_in_image(
                 (z, y, x)
             )
             fits = self._compute_fitted_curves(frequency, z, y, x)
@@ -390,6 +429,9 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
             sizing_mode="stretch_height",
             margin=5,
         )
+        coordinates = pn.widgets.LiteralInput.from_param(
+            self.param.dataset_zyx_coord, disabled=True
+        )
 
         return pn.Card(
             pn.pane.HoloViews(
@@ -402,9 +444,7 @@ class BlsSpectrumVisualizer(pn.viewable.Viewer):
                 self.quantity_tabulator,
                 sizing_mode="stretch_width",
             ),
-            pn.widgets.LiteralInput.from_param(
-                self.param.dataset_zyx_coord, disabled=True
-            ),
+            coordinates,
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
             display_options,
             sizing_mode="stretch_height",

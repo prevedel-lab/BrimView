@@ -6,6 +6,7 @@ import brimfile as bls
 import tempfile
 import os
 
+from panel.io import hold
 
 class BlsFileInput(pn.viewable.Viewer):
     """
@@ -165,6 +166,7 @@ class BlsFileInput(pn.viewable.Viewer):
     def get_bh5_file(self):
         return self.bls_file
 
+    @hold()
     def reload_file(self):
         """Reload the BLS file, keeping the current data group and parameters.
         This is useful if the you're writing some new content to the file, and

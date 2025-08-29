@@ -1,5 +1,6 @@
 from typing import ClassVar
 import panel as pn
+from panel.io import hold
 import param
 import holoviews as hv
 from holoviews import streams
@@ -115,6 +116,7 @@ class BlsDataVisualizer(pn.viewable.Viewer):
     # Records where the user clicked on the (main) plot
     # + as a param, allows other function to react to that
     # plot_clicks = param.NumericTuple(length=3, instantiate=False)
+    _dataset_zyx_click = param.NumericTuple(default=(0, 0, 0))
     dataset_zyx_click = param.NumericTuple(default=(0, 0, 0))
 
     def __init__(self, Bh5file: BlsFileInput, **params):
@@ -139,6 +141,22 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         self.bls_file: bls.File = Bh5file.param.bls_file
 
     @param.depends("bls_data", watch=True)
+    def _read_bls_data(self):
+        """
+        This function is called when the bls_data is changed.
+
+        It will manually call the correct function to update everything. 
+        Some caching mechanism at the function levels will help to not recompute everything unnecessarily.
+        """
+        with param.parameterized.batch_call_watchers(self):
+            self._update_result_list() #Read the list of available results
+            self._update_result_variable() #Read the list of available quantities and peaks
+            self._update_img_data() #Read the actual data
+
+            self._update_colorrange() #Update the colorrange to the new data
+            self._update_axis_3() #Update the 3rd axis slice to the new data
+            self._compute_histogram()
+
     def _update_result_list(self):
         if self.bls_data is None:
             self.result_index_dropdown.disabled = True
@@ -157,25 +175,25 @@ class BlsDataVisualizer(pn.viewable.Viewer):
             self.result_index_dropdown.disabled = True
 
 
-    @param.depends("bls_data", "result_index", watch=True)
-    @only_on_change("bls_data", "result_index")
+    @param.depends("result_index", watch=True) # User IO
+    @only_on_change("result_index")
     def _update_result_variable(self):
         if self.bls_data is None or self.result_index is None:
             return
         
-        self.bls_analysis = self.bls_data.get_analysis_results(self.result_index)
-
-        # Placeholder until a list_AnalysisQuantites or similar exist
-        quantity_list = self.bls_analysis.list_existing_quantities()
-
-        # Update peak types
-        peak_list = list(self.bls_analysis.list_existing_peak_types())
-        if len(peak_list) >= 2:
-            # We can only do an average, if we have 2 peaks
-            peak_list.insert(0, bls.Data.AnalysisResults.PeakType.average)
-
         # Synchronously update the param variables
         with param.parameterized.batch_call_watchers(self):
+            self.bls_analysis = self.bls_data.get_analysis_results(self.result_index)
+
+            # Placeholder until a list_AnalysisQuantites or similar exist
+            quantity_list = self.bls_analysis.list_existing_quantities()
+
+            # Update peak types
+            peak_list = list(self.bls_analysis.list_existing_peak_types())
+            if len(peak_list) >= 2:
+                # We can only do an average, if we have 2 peaks
+                peak_list.insert(0, bls.Data.AnalysisResults.PeakType.average)
+
             self.param.result_peak.objects = peak_list
             self.result_peak = peak_list[0]
             if len(peak_list) > 1 :
@@ -191,10 +209,9 @@ class BlsDataVisualizer(pn.viewable.Viewer):
                 self.result_index_dropdown.disabled = True
 
     @param.depends(
-        "_update_result_variable",
-        "result_quantity",
-        "result_peak",
-        "use_physical_units",
+        "result_quantity", # User IO
+        "result_peak", # User IO
+        "use_physical_units", # User IO
         watch=True,
     )
     @only_on_change("bls_analysis", "result_quantity", "result_peak", "use_physical_units")
@@ -364,7 +381,7 @@ class BlsDataVisualizer(pn.viewable.Viewer):
             watch=False,  # This function returns something
         )
     )
-    @only_on_change("img_dataset", "img_axis_3_slice", "colormap", "colorrange")
+    @only_on_change("img_dataset", "img_axis_1", "img_axis_2", "img_axis_3_slice", "colormap", "colorrange")
     def _plot_data(self):
         """
         When one of the parameter changes, we recreate the correct plot.
@@ -442,11 +459,32 @@ class BlsDataVisualizer(pn.viewable.Viewer):
             case "z":
                 z = self.img_axis_3_slice
 
-        self.dataset_zyx_click = (
+
+        # === weird WORKAROUND ===
+        # - this function is being called by stream from Holoview
+        # - it's updating a param variable
+        # - this param variable is linked to another one, that is used to trigger stuff
+        #
+        # *However*: because the initial event comes from Holoviews, it 
+        # seems like there's some kind of 'lock' and the downstream function 
+        # don't update the GUI like they're supposed too
+        # (in particular, some widget.loading = True was displaying/updating at the *end* of the function call, not immediately)
+        #
+        # So the workaround is:
+        # - store the value of click somewhere (internal variable)
+        # - schedule panel to copy that value into the linked param variable
+        # - `pn.state.curdoc.add_next_tick_callback` has been recommended by ChatGPT, and seems to work
+        self._dataset_zyx_click = (
             round(z / self.z_px.value),
             round(y / self.y_px.value),
             round(x / self.x_px.value),
         )
+
+        async def _panel_update():
+            self.dataset_zyx_click = self._dataset_zyx_click 
+        
+        pn.state.curdoc.add_next_tick_callback(_panel_update)
+
 
     @(param.depends("img_dataset", watch=True))
     @only_on_change("img_dataset")

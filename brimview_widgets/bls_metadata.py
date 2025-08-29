@@ -27,12 +27,13 @@ class BlsMetadata(WidgetBase, PyComponent):
         super().__init__(**params)
         
         print("BlsMetadata initialized")
-        
+
         # Explicit annotation, because param and type hinting is not working properly
         self.value: bls.Data
 
     @param.depends("value", watch=True)
     def _update_tabulator(self):
+        print("Updating metadata tabulator")
         if self.value is None:
             self.title.object = "## Metadata of the file \n Please load a file"
             self.tabulator.value = None
