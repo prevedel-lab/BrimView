@@ -160,7 +160,7 @@ patched_body = patched_body[:match.start()] + injected_block + patched_body[matc
 
 # === Step 5: Combine and save
 print(">> Saving patched worker script...")
-final_code = patched_body + prepend_code.rstrip() + "\n\n" + injection_function + "\n\n" 
+final_code = patched_body + "\n\n" + prepend_code.rstrip() + "\n\n" + injection_function + "\n\n" 
 pathlib.Path(worker_script).write_text(final_code)
 
 
