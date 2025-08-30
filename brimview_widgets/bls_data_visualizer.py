@@ -13,6 +13,8 @@ from .utils import only_on_change
 import colorcet as cc
 import pandas as pd
 
+import sys
+
 # DEBUG
 import time
 
@@ -483,7 +485,11 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         async def _panel_update():
             self.dataset_zyx_click = self._dataset_zyx_click 
         
-        pn.state.curdoc.add_next_tick_callback(_panel_update)
+        if "pyodide" in sys.modules:
+            # the add_next_tick_callback doesn't seem to work in pyodide
+            self.dataset_zyx_click = self._dataset_zyx_click 
+        else:
+            pn.state.curdoc.add_next_tick_callback(_panel_update)
 
 
     @(param.depends("img_dataset", watch=True))
