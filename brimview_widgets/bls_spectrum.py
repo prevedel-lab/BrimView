@@ -136,32 +136,25 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             return amplitude * (eta * l + (1 - eta) * g) + offset
 
         fits = {}
+        qts = self.value.analysis.get_all_quantities_in_image((z,y,x))
         for peak in self.value.analysis.list_existing_peak_types():
             try:
-                width = self.value.analysis.get_image(
-                    qt=bls.Data.AnalysisResults.Quantity.Width, pt=peak
-                )[0][z, y, x]
+                width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
             except Exception as e:
                 print(f"Error getting width for peak {peak.name}: {e}")
                 width = None
             try:
-                shift = self.value.analysis.get_image(
-                    qt=bls.Data.AnalysisResults.Quantity.Shift, pt=peak
-                )[0][z, y, x]
+                shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
             except Exception as e:
                 print(f"Error getting shift for peak {peak.name}: {e}")
                 shift = None
             try:
-                amplitude = self.value.analysis.get_image(
-                    qt=bls.Data.AnalysisResults.Quantity.Amplitude, pt=peak
-                )[0][z, y, x]
+                amplitude = qts[bls.Data.AnalysisResults.Quantity.Amplitude.name][peak.name].value
             except Exception as e:
                 print(f"Error getting amplitude for peak {peak.name}: {e}")
                 amplitude = None
             try:
-                offset = self.value.analysis.get_image(
-                    qt=bls.Data.AnalysisResults.Quantity.Offset, pt=peak
-                )[0][z, y, x]
+                offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
             except Exception as e:
                 print(f"Error getting offset for peak {peak.name}: {e}")
                 offset = None
@@ -206,43 +199,10 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
        
         (z, y, x) = self.get_coordinates()
         if self.value is not None and self.value.data is not None:
-            result = {}
 
-            self.bls_spectrum_in_image = self.value.data.get_spectrum_in_image(
-                (z, y, x)
+            self.bls_spectrum_in_image, self.results_at_point = self.value.data.get_spectrum_and_all_quantities_in_image(
+                self.value.analysis, (z, y, x)
             )
-
-            for quantity in self.value.analysis.list_existing_quantities():
-
-                result[quantity.name] = {}
-                values = []
-                peak_types = list(self.value.analysis.list_existing_peak_types())
-                peak_types.append(bls.Data.AnalysisResults.PeakType.average)
-                for peak in peak_types:
-                    try:
-                        value = self.value.analysis.get_quantity_at_pixel(
-                            (z, y, x), quantity, peak
-                        )
-                        # TODO: change this later on
-                        if peak == bls.Data.AnalysisResults.PeakType.average:
-                            unit = self.value.analysis.get_units(
-                                quantity, peak_types[0]
-                            )
-                        else:
-                            unit = self.value.analysis.get_units(quantity, peak)
-                    except Exception as e:
-                        print(f"Error getting quantity at pixel ({x=}, {y=}): {e}")
-                        value = None
-                        unit = None
-                    result[quantity.name][peak.name] = bls.Metadata.Item(
-                        value, unit
-                    )
-
-                    if value is not None:  # To compute the average
-                        values.append(value)
-
-            self.results_at_point = result
-
         else:
             self.bls_spectrum_in_image = None
 
