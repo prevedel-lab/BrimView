@@ -93,6 +93,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 "groupStartOpen": False  # This makes all groups collapsed initially
             },
         )
+        self.spinner = pn.indicators.LoadingSpinner(value=True, size=20, name='Loading...', visible=True)
         self.bls_spectrum_in_image = None
         super().__init__(**params)
         # Watch tap stream updates
@@ -176,6 +177,27 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                     )
             fits[peak.name] = y_values
         return fits
+    
+    @pn.depends("loading", watch=True)
+    def loading_spinner(self):
+        """
+            Controls an additional spinner UI. 
+            This goes on top of the `loading` param that comes with panel widgets.
+
+            This is especially usefull in the `panel convert` case, 
+            because some UI elements can't updated easily (or at least in the same way as `panel serve`).
+            In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes 
+            don't get updated.
+        """
+        if self.loading:
+            self.spinner.value = True
+            self.spinner.name = "Loading..."
+            self.spinner.visible = True 
+        else:
+            self.spinner.value = False
+            self.spinner.name = "Done"
+            self.spinner.visible = True
+
 
     @param.depends("display_fit", "fit_type")
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
@@ -394,6 +416,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         )
 
         return pn.Card(
+            pn.Row(pn.HSpacer(), self.spinner, pn.HSpacer()),      
             pn.pane.HoloViews(
                 self.plot_spectrum,
                 height=300,  # Not the greatest solution
