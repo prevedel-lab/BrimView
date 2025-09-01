@@ -110,6 +110,11 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             data=result_plot.param.bls_data,
             analysis=result_plot.param.bls_analysis,
         )
+        
+        # Because we're not a pn.Viewer anymore, by default we lost the "card" display
+        # so despite us returning a card from __panel__, the shown card didn't match
+        # the card display (background color, shadows)
+        self.css_classes.append("card")
 
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
         if not self.display_fit:
@@ -431,5 +436,5 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
             display_options,
             sizing_mode="stretch_height",
-            title="Spectrum visualization",
+            title="Spectrum visualization"
         )
