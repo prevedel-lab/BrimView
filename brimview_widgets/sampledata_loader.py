@@ -18,7 +18,7 @@ class SampledataLoader(pn.viewable.Viewer):
         )
         self.sampledata_load_button.on_click(self._load_s3_file)
         self.s3_link = pn.widgets.Select(
-            name='Sample data', 
+            name='Dataset', 
             options=list(self._sampledata.keys()),
             width=300)
 
@@ -42,4 +42,11 @@ class SampledataLoader(pn.viewable.Viewer):
         self.process_path_fn = func
 
     def __panel__(self):
-        return pn.layout.FlexBox(self.s3_link, self.sampledata_load_button)
+        return pn.Card(
+            pn.layout.FlexBox(self.s3_link, self.sampledata_load_button),
+            title="Sample data",
+            collapsed=True,
+            collapsible=True,
+            sizing_mode="stretch_width",
+            margin=5
+        )
