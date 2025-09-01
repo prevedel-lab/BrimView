@@ -185,8 +185,10 @@ if use_compiled_flag:
 print(">> Replacing worker init inside index.html...")
 html_path = pathlib.Path(html_page)
 text = html_path.read_text()
+pyodideWorker_replacement_text = 'if (!("Suspending" in WebAssembly)) {window.location.assign("./no_jspi.html")};\n\t\t\t' \
+'const pyodideWorker = new Worker("./index.js", {type: "module"});'
 text = text.replace('const pyodideWorker = new Worker("./index.js");', 
-             'const pyodideWorker = new Worker("./index.js", {type: "module"});')
+            pyodideWorker_replacement_text)
 html_path.write_text(text)
 
 print(f"✅ Build complete. Patched worker saved to {worker_script}")
