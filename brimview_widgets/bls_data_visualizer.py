@@ -179,7 +179,7 @@ class BlsDataVisualizer(pn.viewable.Viewer):
 
 
     @param.depends("result_index", watch=True) # User IO
-    @only_on_change("result_index")
+    @only_on_change("bls_data", "result_index")
     def _update_result_variable(self):
         if self.bls_data is None or self.result_index is None:
             return
@@ -219,6 +219,10 @@ class BlsDataVisualizer(pn.viewable.Viewer):
     )
     @only_on_change("bls_analysis", "result_quantity", "result_peak", "use_physical_units")
     def _update_img_data(self):
+        if self.bls_analysis is None:
+            self.img_data = np.zeros((512, 512))
+            return 
+
         (img_data, px_units) = self.bls_analysis.get_image(
             self.result_quantity, self.result_peak
         )

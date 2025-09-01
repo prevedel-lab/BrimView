@@ -45,6 +45,7 @@ class BlsFileInput(pn.viewable.Viewer):
             # Manual reset
             self.data_group = None
             self.data_parameter = None
+            self.bls_file = None
 
         self.bls_file = file
         print(f"New BLS file created: {self.bls_file}")
