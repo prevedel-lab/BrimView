@@ -614,7 +614,6 @@ class BlsDataVisualizer(pn.viewable.Viewer):
                     pn.widgets.Select.from_param(
                         self.param.img_axis_3, disabled=True, width=150
                     ),
-                    self.img_axis_3_slice_widget,
                 ),
                 pn.widgets.Checkbox.from_param(self.param.use_physical_units),
                 self.phys_unit_widget,
@@ -627,6 +626,7 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         )
 
         return pn.Card(
+            pn.Row(self.img_axis_3_slice_widget, align="center"),
             pn.pane.HoloViews(self._plot_data),
             self.result_options,
             axis_options,
