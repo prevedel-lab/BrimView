@@ -17,6 +17,7 @@ import sys
 
 # DEBUG
 import time
+import datetime as dt
 
 
 def get_linear_colormaps() -> dict:
@@ -468,28 +469,24 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         # - this param variable is linked to another one, that is used to trigger stuff
         #
         # *However*: because the initial event comes from Holoviews, it 
-        # seems like there's some kind of 'lock' and the downstream function 
-        # don't update the GUI like they're supposed too
+        # seems like there's some kind of 'lock' (either on bokeh model, or some batch_process from panel)  and the downstream function 
+        # don't update the GUI at the time they're supposed too
         # (in particular, some widget.loading = True was displaying/updating at the *end* of the function call, not immediately)
         #
         # So the workaround is:
-        # - store the value of click somewhere (internal variable)
-        # - schedule panel to copy that value into the linked param variable
-        # - `pn.state.curdoc.add_next_tick_callback` has been recommended by ChatGPT, and seems to work
-        self._dataset_zyx_click = (
-            round(z / self.z_px.value),
-            round(y / self.y_px.value),
-            round(x / self.x_px.value),
-        )
+        # - call add_periodic_callback with a function that will update the param (and trigger the downstream stuff)
+        #
+        # This has been tested with `panel serve` and `panel convert`
+       
+        def _panel_update():
+            self.dataset_zyx_click = (
+                round(z / self.z_px.value),
+                round(y / self.y_px.value),
+                round(x / self.x_px.value),
+            )
 
-        async def _panel_update():
-            self.dataset_zyx_click = self._dataset_zyx_click 
-        
-        if "pyodide" in sys.modules:
-            # the add_next_tick_callback doesn't seem to work in pyodide
-            self.dataset_zyx_click = self._dataset_zyx_click 
-        else:
-            pn.state.curdoc.add_next_tick_callback(_panel_update)
+        pn.state.add_periodic_callback(_panel_update, period=200, count=1)
+    
 
 
     @(param.depends("img_dataset", watch=True))
