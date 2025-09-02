@@ -30,7 +30,7 @@ main_tabs = pn.Tabs(
 
 # Adding a github icon linking to the project in the header
 github_icon = pn.pane.HTML(
-    '<a href="https://github.com/prevedel-lab/brimfile" target="_blank" style="text-decoration: none;">'
+    '<a href="https://github.com/prevedel-lab/BrimView" target="_blank" style="text-decoration: none;">'
     '<img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="24" height="24" style="vertical-align: middle;">'
     "</a>",
 )
