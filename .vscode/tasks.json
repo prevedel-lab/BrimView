@@ -2,6 +2,22 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Build BrimView dependencies",
+            "type": "shell",
+            "command": "${command:python.interpreterPath}",
+            "args": [
+                "${cwd}/src/build_deps.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "${workspaceFolder}\\.venv\\Scripts;${env:PATH}"
+                }
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
             "label": "Build webapp",
             "type": "shell",
             "command": "${command:python.interpreterPath}",
@@ -25,6 +41,17 @@
                 "panel": "shared"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Build brimview-widget + webapp",
+            "dependsOn": [
+                "Build brimview-widget wheel",
+                "Copy wheel to pyodide",
+                "Build webapp"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
+            "group": "build"
         },
         {
             "label": "Upload Pyodide-version to remote server",
