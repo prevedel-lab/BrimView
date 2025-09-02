@@ -36,15 +36,33 @@ github_icon = pn.pane.HTML(
 )
 header_row = pn.Row(pn.layout.HSpacer(), github_icon)
 
+data_protection = pn.Row(pn.Card(
+    pn.pane.HTML("When you upload a file from your computer, it is processed <b>locally in your browser</b> and <b>never sent to any server</b>."),
+    hide_header = True,
+    title = "Data protection",
+    styles={'background': 'White'},
+    sizing_mode="stretch_width",
+    collapsible = False
+    ))
+
+credits = pn.Row(pn.Card(
+    pn.pane.HTML("If you encounter any issue, please open a <a href='https://github.com/prevedel-lab/BrimView/issues'>GitHub issue</a>."),
+    pn.pane.HTML("<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p>",),
+    hide_header = True,
+    title = "Credits",
+    styles={'background': 'White'},
+    sizing_mode="stretch_width",
+    collapsible = False
+    ))
+
 # Assembling the temaplte together
 layout = pn.template.FastListTemplate(
     title="BrimView - a web-based Brillouin viewer and analyzer",
     header=[header_row],
-    sidebar=[sidebar],
+    sidebar=[sidebar, pn.Spacer(height=30), data_protection, pn.Spacer(height=15), credits],
     logo="./src/BrimView.png", # relative path to where you call `panel serve`
     favicon="./src/BrimView.png",
     accent="#4099da",
-    sidebar_footer="BrimView - A Brimfile Viewer. Checkout the source code on Github. License: XXX",
 )
 
 layout.main.append(main_tabs)
@@ -213,7 +231,7 @@ async def build_ui():
     # ======
 
     # "Treatement" tab
-    main_tabs.append(("Do spectrum treatement", analyser_placeholder))
+    main_tabs.append(("(Re-)analyze spectra", analyser_placeholder))
 
 
     # ======
