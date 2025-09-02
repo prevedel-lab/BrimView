@@ -10,6 +10,7 @@ import xarray as xr
 import brimfile as bls
 from .bls_file_input import BlsFileInput
 from .utils import only_on_change
+from .widgets import HorizontalEditableIntSlider
 import colorcet as cc
 import pandas as pd
 
@@ -18,6 +19,10 @@ import sys
 # DEBUG
 import time
 import datetime as dt
+
+from panel.widgets.base import WidgetBase
+from panel.custom import PyComponent
+
 
 
 def get_linear_colormaps() -> dict:
@@ -32,7 +37,7 @@ def get_linear_colormaps() -> dict:
     return cmap_dict
 
 
-class BlsDataVisualizer(pn.viewable.Viewer):
+class BlsDataVisualizer(WidgetBase, PyComponent):
     """
     Class to display a single data group from the HDF5 file.
 
@@ -124,6 +129,8 @@ class BlsDataVisualizer(pn.viewable.Viewer):
 
     def __init__(self, Bh5file: BlsFileInput, **params):
 
+        self.spinner = pn.indicators.LoadingSpinner(value=False, size=20, name='Done', visible=True)
+
         # Bh5file.param.watch(self._update_data, ["data"])
         # self.get_bh5_file = Bh5file.get_bh5_file
         self.img_data = np.zeros((512, 512))  # Placeholder for no data
@@ -143,6 +150,33 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         self.bls_data: bls.Data = Bh5file.param.data
         self.bls_file: bls.File = Bh5file.param.bls_file
 
+        # Because we're not a pn.Viewer anymore, by default we lost the "card" display
+        # so despite us returning a card from __panel__, the shown card didn't match
+        # the card display (background color, shadows)
+        self.css_classes.append("card")
+
+    @pn.depends("loading", watch=True)
+    def loading_spinner(self):
+        """
+            Controls an additional spinner UI. 
+            This goes on top of the `loading` param that comes with panel widgets.
+
+            This is especially usefull in the `panel convert` case, 
+            because some UI elements can't updated easily (or at least in the same way as `panel serve`).
+            In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes 
+            don't get updated.
+        """
+        with param.parameterized.batch_call_watchers(self.spinner):
+            if self.loading:
+                self.spinner.value = True
+                self.spinner.name = "Loading..."
+                self.spinner.visible = True 
+            else:
+                self.spinner.value = False
+                self.spinner.name = "Done"
+                self.spinner.visible = True
+
+
     @param.depends("bls_data", watch=True)
     def _read_bls_data(self):
         """
@@ -151,6 +185,8 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         It will manually call the correct function to update everything. 
         Some caching mechanism at the function levels will help to not recompute everything unnecessarily.
         """
+        self.loading = True
+
         with param.parameterized.batch_call_watchers(self):
             self._update_result_list() #Read the list of available results
             self._update_result_variable() #Read the list of available quantities and peaks
@@ -159,6 +195,8 @@ class BlsDataVisualizer(pn.viewable.Viewer):
             self._update_colorrange() #Update the colorrange to the new data
             self._update_axis_3() #Update the 3rd axis slice to the new data
             self._compute_histogram()
+
+        self.loading = False
 
     def _update_result_list(self):
         if self.bls_data is None:
@@ -599,7 +637,7 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         )
 
         # Seems like we need to manually update the widget's bounds
-        self.img_axis_3_slice_widget = pn.widgets.EditableIntSlider.from_param(
+        self.img_axis_3_slice_widget = HorizontalEditableIntSlider.from_param(
             self.param.img_axis_3_slice,
             format="0",
             name="3rd axis",
@@ -630,7 +668,7 @@ class BlsDataVisualizer(pn.viewable.Viewer):
         )
 
         return pn.Card(
-            pn.Row(self.img_axis_3_slice_widget, align="center"),
+            pn.Row(self.spinner, self.img_axis_3_slice_widget, align="center"),
             pn.pane.HoloViews(self._plot_data),
             self.result_options,
             axis_options,
