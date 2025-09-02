@@ -93,7 +93,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 "groupStartOpen": False  # This makes all groups collapsed initially
             },
         )
-        self.spinner = pn.indicators.LoadingSpinner(value=True, size=20, name='Loading...', visible=True)
+        self.spinner = pn.indicators.LoadingSpinner(value=False, size=20, name='Idle', visible=True)
         self.bls_spectrum_in_image = None
         params["name"] = "Spectrum visualization"
         super().__init__(**params)

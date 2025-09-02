@@ -129,7 +129,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
     def __init__(self, Bh5file: BlsFileInput, **params):
 
         self.spinner = pn.indicators.LoadingSpinner(
-            value=False, size=20, name="Done", visible=True
+            value=False, size=20, name="Idle", visible=True
         )
 
         # Bh5file.param.watch(self._update_data, ["data"])
