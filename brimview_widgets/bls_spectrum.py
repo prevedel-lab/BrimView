@@ -95,6 +95,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         )
         self.spinner = pn.indicators.LoadingSpinner(value=True, size=20, name='Loading...', visible=True)
         self.bls_spectrum_in_image = None
+        params["name"] = "Spectrum visualization"
         super().__init__(**params)
         # Watch tap stream updates
 
@@ -200,8 +201,37 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             self.spinner.visible = True 
         else:
             self.spinner.value = False
-            self.spinner.name = "Done"
+            self.spinner.name = "Idle"
             self.spinner.visible = True
+
+    def rewrite_card_header(self, card: pn.Card):
+        """
+            Changes a bit how the header of the card is displayed.
+            We replace the default title by 
+                [{self.name}     {spinner}]
+            
+            With self.name to the left and spinner to the right
+        """
+        params = {
+            "object": f"<h3>{self.name}</h3>" if self.name else "&#8203;",
+            "css_classes": card.title_css_classes,
+            "margin": (5, 0),
+        }
+        self.spinner.align = ("end", "center")
+        self.spinner.margin = (10,30)
+        header = pn.FlexBox(
+            pn.pane.HTML(**params),
+            #self.spinner,
+            #pn.Spacer(),  # pushes next item to the right
+            self.spinner,
+            align_content = "space-between", 
+            align_items="center",  # Vertical-ish
+            sizing_mode='stretch_width',
+            justify_content = "space-between"
+        )
+        #header.styles = {"place-content": "space-between"}
+        card.header = header
+        card._header_layout.styles = {"width": "inherit"}
 
 
     @param.depends("display_fit", "fit_type")
@@ -418,8 +448,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             self.param.dataset_zyx_coord, disabled=True
         )
 
-        return pn.Card(
-            pn.Row(pn.HSpacer(), self.spinner, pn.HSpacer()),      
+        card =  pn.Card(    
             pn.pane.HoloViews(
                 self.plot_spectrum,
                 height=300,  # Not the greatest solution
@@ -433,6 +462,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             coordinates,
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
             display_options,
-            sizing_mode="stretch_height",
-            title="Spectrum visualization"
+            sizing_mode="stretch_height"
         )
+
+        self.rewrite_card_header(card)
+        return card

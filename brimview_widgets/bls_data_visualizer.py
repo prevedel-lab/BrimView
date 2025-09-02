@@ -24,7 +24,6 @@ from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 
 
-
 def get_linear_colormaps() -> dict:
     """
     Creates the dictionnary of of colorpalettes to be displayed in the app.
@@ -129,7 +128,9 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     def __init__(self, Bh5file: BlsFileInput, **params):
 
-        self.spinner = pn.indicators.LoadingSpinner(value=False, size=20, name='Done', visible=True)
+        self.spinner = pn.indicators.LoadingSpinner(
+            value=False, size=20, name="Done", visible=True
+        )
 
         # Bh5file.param.watch(self._update_data, ["data"])
         # self.get_bh5_file = Bh5file.get_bh5_file
@@ -144,7 +145,9 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         self.plot = hv.Image([])
         self.histogram = hv.Histogram([])
 
+        params["name"] = "Data Analysis visualization"
         super().__init__(**params)
+        
 
         # Explicit annotation, because param and type hinting is not working properly
         self.bls_data: bls.Data = Bh5file.param.data
@@ -158,23 +161,52 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
     @pn.depends("loading", watch=True)
     def loading_spinner(self):
         """
-            Controls an additional spinner UI. 
-            This goes on top of the `loading` param that comes with panel widgets.
+        Controls an additional spinner UI.
+        This goes on top of the `loading` param that comes with panel widgets.
 
-            This is especially usefull in the `panel convert` case, 
-            because some UI elements can't updated easily (or at least in the same way as `panel serve`).
-            In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes 
-            don't get updated.
+        This is especially usefull in the `panel convert` case,
+        because some UI elements can't updated easily (or at least in the same way as `panel serve`).
+        In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes
+        don't get updated.
         """
         with param.parameterized.batch_call_watchers(self.spinner):
             if self.loading:
                 self.spinner.value = True
                 self.spinner.name = "Loading..."
-                self.spinner.visible = True 
+                self.spinner.visible = True
             else:
                 self.spinner.value = False
-                self.spinner.name = "Done"
+                self.spinner.name = "Idle"
                 self.spinner.visible = True
+
+    def rewrite_card_header(self, card: pn.Card):
+        """
+            Changes a bit how the header of the card is displayed.
+            We replace the default title by 
+                [{self.name}     {spinner}]
+            
+            With self.name to the left and spinner to the right
+        """
+        params = {
+            "object": f"<h3>{self.name}</h3>" if self.name else "&#8203;",
+            "css_classes": card.title_css_classes,
+            "margin": (5, 0),
+        }
+        self.spinner.align = ("end", "center")
+        self.spinner.margin = (10,30)
+        header = pn.FlexBox(
+            pn.pane.HTML(**params),
+            #self.spinner,
+            #pn.Spacer(),  # pushes next item to the right
+            self.spinner,
+            align_content = "space-between", 
+            align_items="center",  # Vertical-ish
+            sizing_mode='stretch_width',
+            justify_content = "space-between"
+        )
+        #header.styles = {"place-content": "space-between"}
+        card.header = header
+        card._header_layout.styles = {"width": "inherit"}
 
 
     @param.depends("bls_data", watch=True)
@@ -182,18 +214,18 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         """
         This function is called when the bls_data is changed.
 
-        It will manually call the correct function to update everything. 
+        It will manually call the correct function to update everything.
         Some caching mechanism at the function levels will help to not recompute everything unnecessarily.
         """
         self.loading = True
 
         with param.parameterized.batch_call_watchers(self):
-            self._update_result_list() #Read the list of available results
-            self._update_result_variable() #Read the list of available quantities and peaks
-            self._update_img_data() #Read the actual data
+            self._update_result_list()  # Read the list of available results
+            self._update_result_variable()  # Read the list of available quantities and peaks
+            self._update_img_data()  # Read the actual data
 
-            self._update_colorrange() #Update the colorrange to the new data
-            self._update_axis_3() #Update the 3rd axis slice to the new data
+            self._update_colorrange()  # Update the colorrange to the new data
+            self._update_axis_3()  # Update the 3rd axis slice to the new data
             self._compute_histogram()
 
         self.loading = False
@@ -201,8 +233,8 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
     def _update_result_list(self):
         if self.bls_data is None:
             self.result_index_dropdown.disabled = True
-            return 
-        
+            return
+
         # Update Analysis
         results_list = self.bls_data.list_AnalysisResults()
         cleaned_results_list = {
@@ -210,18 +242,17 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         }
         self.param.result_index.objects = cleaned_results_list
         self.result_index = list(cleaned_results_list.values())[0]
-        if len(cleaned_results_list) > 1 :
+        if len(cleaned_results_list) > 1:
             self.result_index_dropdown.disabled = False
         else:
             self.result_index_dropdown.disabled = True
 
-
-    @param.depends("result_index", watch=True) # User IO
+    @param.depends("result_index", watch=True)  # User IO
     @only_on_change("bls_data", "result_index")
     def _update_result_variable(self):
         if self.bls_data is None or self.result_index is None:
             return
-        
+
         # Synchronously update the param variables
         with param.parameterized.batch_call_watchers(self):
             self.bls_analysis = self.bls_data.get_analysis_results(self.result_index)
@@ -237,7 +268,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
             self.param.result_peak.objects = peak_list
             self.result_peak = peak_list[0]
-            if len(peak_list) > 1 :
+            if len(peak_list) > 1:
                 self.result_peak_dropdown.disabled = False
             else:
                 self.result_peak_dropdown.disabled = True
@@ -250,16 +281,18 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
                 self.result_index_dropdown.disabled = True
 
     @param.depends(
-        "result_quantity", # User IO
-        "result_peak", # User IO
-        "use_physical_units", # User IO
+        "result_quantity",  # User IO
+        "result_peak",  # User IO
+        "use_physical_units",  # User IO
         watch=True,
     )
-    @only_on_change("bls_analysis", "result_quantity", "result_peak", "use_physical_units")
+    @only_on_change(
+        "bls_analysis", "result_quantity", "result_peak", "use_physical_units"
+    )
     def _update_img_data(self):
         if self.bls_analysis is None:
             self.img_data = np.zeros((512, 512))
-            return 
+            return
 
         (img_data, px_units) = self.bls_analysis.get_image(
             self.result_quantity, self.result_peak
@@ -416,17 +449,24 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     @(
         param.depends(
-            "img_dataset", #variable
-            "_update_axis_1", #func
-            "_update_axis_2", #func
-            "_update_axis_3", #func
-            "img_axis_3_slice", #variable
-            "colormap", #variable
-            "colorrange", #variable
+            "img_dataset",  # variable
+            "_update_axis_1",  # func
+            "_update_axis_2",  # func
+            "_update_axis_3",  # func
+            "img_axis_3_slice",  # variable
+            "colormap",  # variable
+            "colorrange",  # variable
             watch=False,  # This function returns something
         )
     )
-    @only_on_change("img_dataset", "img_axis_1", "img_axis_2", "img_axis_3_slice", "colormap", "colorrange")
+    @only_on_change(
+        "img_dataset",
+        "img_axis_1",
+        "img_axis_2",
+        "img_axis_3_slice",
+        "colormap",
+        "colorrange",
+    )
     def _plot_data(self):
         """
         When one of the parameter changes, we recreate the correct plot.
@@ -504,14 +544,13 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             case "z":
                 z = self.img_axis_3_slice
 
-
         # === weird WORKAROUND ===
         # - this function is being called by stream from Holoview
         # - it's updating a param variable
         # - this param variable is linked to another one, that is used to trigger stuff
         #
-        # *However*: because the initial event comes from Holoviews, it 
-        # seems like there's some kind of 'lock' (either on bokeh model, or some batch_process from panel)  and the downstream function 
+        # *However*: because the initial event comes from Holoviews, it
+        # seems like there's some kind of 'lock' (either on bokeh model, or some batch_process from panel)  and the downstream function
         # don't update the GUI at the time they're supposed too
         # (in particular, some widget.loading = True was displaying/updating at the *end* of the function call, not immediately)
         #
@@ -519,7 +558,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         # - call add_periodic_callback with a function that will update the param (and trigger the downstream stuff)
         #
         # This has been tested with `panel serve` and `panel convert`
-       
+
         def _panel_update():
             self.dataset_zyx_click = (
                 round(z / self.z_px.value),
@@ -528,8 +567,6 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             )
 
         pn.state.add_periodic_callback(_panel_update, period=200, count=1)
-    
-
 
     @(param.depends("img_dataset", watch=True))
     @only_on_change("img_dataset")
@@ -554,37 +591,37 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         ).opts(axiswise=True)
 
         return (self.histogram * self.vlines).opts(axiswise=True)
-    
+
     def download_tiff(self):
-            """
-            Converts the current selected and displayed data into a tiff file.
+        """
+        Converts the current selected and displayed data into a tiff file.
 
-            The file is saved in a temporary directory, and
-            it's path/name if returned. panel.widget.FileDownload will then
-            automatically download the file when the user clicks on the button.
-            """
-            import tempfile
-            import os
+        The file is saved in a temporary directory, and
+        it's path/name if returned. panel.widget.FileDownload will then
+        automatically download the file when the user clicks on the button.
+        """
+        import tempfile
+        import os
 
-            if self.bls_data is None or self.bls_analysis is None:
-                print("No data loaded, cannot download tiff")
-                return
-            print("TODO - download as tiff")
+        if self.bls_data is None or self.bls_analysis is None:
+            print("No data loaded, cannot download tiff")
+            return
+        print("TODO - download as tiff")
 
-            # temp fix: filename retuns the full path of the file
-            bls_file_name = os.path.basename(self.bls_file.filename)
-            filename = f"{bls_file_name}_{self.bls_data.get_name()}_{self.bls_analysis.get_name()}_{self.result_peak.name}.ome.tif"
-            tmpdir = tempfile.mkdtemp()
-            file_path = os.path.join(tmpdir, filename)
-            print(f"Saving tiff to {file_path}")
-            path = self.bls_analysis.save_image_to_OMETiff(
-                self.result_quantity, self.result_peak, index=0, filename=file_path
-            )
+        # temp fix: filename retuns the full path of the file
+        bls_file_name = os.path.basename(self.bls_file.filename)
+        filename = f"{bls_file_name}_{self.bls_data.get_name()}_{self.bls_analysis.get_name()}_{self.result_peak.name}.ome.tif"
+        tmpdir = tempfile.mkdtemp()
+        file_path = os.path.join(tmpdir, filename)
+        print(f"Saving tiff to {file_path}")
+        path = self.bls_analysis.save_image_to_OMETiff(
+            self.result_quantity, self.result_peak, index=0, filename=file_path
+        )
 
-            print(f"Saved tiff to {path}")
-            self.result_download.filename = filename
-            return file_path
-    
+        print(f"Saved tiff to {path}")
+        self.result_download.filename = filename
+        return file_path
+
     def __panel__(self):
         """Use some fancier widget for some parameters"""
 
@@ -597,18 +634,22 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         self.result_peak_dropdown = pn.widgets.Select.from_param(
             self.param.result_peak, width=150
         )
-        
+
         self.result_download = pn.widgets.FileDownload(
             name="Click to start download of data",
             filename="brimview_default.tiff",
             label="Export as OME-tiff",
             button_type="primary",
-            auto=True, 
-            callback=self.download_tiff,)
-        
+            auto=True,
+            callback=self.download_tiff,
+        )
+
         self.result_options = pn.Card(
             pn.FlexBox(
-                self.result_index_dropdown, self.result_quantity_dropdown, self.result_peak_dropdown, self.result_download
+                self.result_index_dropdown,
+                self.result_quantity_dropdown,
+                self.result_peak_dropdown,
+                self.result_download,
             ),
             title="Result display selection",
             collapsed=False,
@@ -667,11 +708,12 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             margin=5,
         )
 
-        return pn.Card(
-            pn.Row(self.spinner, self.img_axis_3_slice_widget, align="center"),
+        main_card = pn.Card(
+            pn.Row(self.img_axis_3_slice_widget, align="center"),
             pn.pane.HoloViews(self._plot_data),
             self.result_options,
             axis_options,
             rendering_options,
-            title="Data Analysis visualization",
         )
+        self.rewrite_card_header(main_card)
+        return main_card
