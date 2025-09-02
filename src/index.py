@@ -4,17 +4,21 @@ import holoviews as hv
 import xarray as xr  # Force import of xarray
 import scipy
 import numpy as np  # Force import of numpy
-import tifffile # Force import of tifffile
+import tifffile  # Force import of tifffile
 import brimfile as bls  # Force import of brimfile
 import brimview_widgets
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
-pn.extension(raw_css=[ """
+pn.extension(
+    raw_css=[
+        """
 .bk-tabs .bk-tab-pane[hidden] {
     pointer-events: none !important;
 }
-"""])
+"""
+    ]
+)
 
 print("Hello world")
 print(bls.__version__)
@@ -25,7 +29,7 @@ print(bls.__version__)
 # See: https://panel.holoviz.org/explanation/styling/templates_overview.html
 sidebar = pn.layout.FlexBox()
 main_tabs = pn.Tabs(
-    sizing_mode="stretch_width",   
+    sizing_mode="stretch_width",
 )
 
 # Adding a github icon linking to the project in the header
@@ -41,7 +45,7 @@ layout = pn.template.FastListTemplate(
     title="BrimView - a web-based Brillouin viewer and analyzer",
     header=[header_row],
     sidebar=[sidebar],
-    logo="./src/BrimView.png", # relative path to where you call `panel serve`
+    logo="./src/BrimView.png",  # relative path to where you call `panel serve`
     favicon="./src/BrimView.png",
     accent="#4099da",
     sidebar_footer="BrimView - A Brimfile Viewer. Checkout the source code on Github. License: XXX",
@@ -123,19 +127,21 @@ async def build_ui():
         js_file_widget.set_update_function(FileSelector.external_file_update)
 
         s3_file_selector = brimview_widgets.S3FileSelector()
+
         def load_s3_file(file_path):
             from js import loadZarrFile
+
             if not loadZarrFile(file_path):
                 raise ValueError(f"Failed to load file {file_path} from S3")
             if "bls_file" not in globals():
                 raise ValueError("Something went wrong with loading the file!")
             bls_file = globals()["bls_file"]
             return bls_file
-        
+
         s3_file_selector.set_update_function(
             lambda file_path: FileSelector.external_file_update(
                 # In pyodide, bls.File expect the param to already be a correct zarr obj
-               load_s3_file(file_path)
+                load_s3_file(file_path)
             )
         )
 
@@ -143,11 +149,14 @@ async def build_ui():
         sampledata_selector.set_update_function(
             lambda file_path: FileSelector.external_file_update(
                 # In pyodide, bls.File expect the param to already be a correct zarr obj
-               load_s3_file(file_path)
+                load_s3_file(file_path)
             )
         )
 
-        file_widget = pn.layout.FlexBox(js_file_widget, s3_file_selector)
+        file_widget = pn.layout.FlexBox(
+            pn.Card(js_file_widget, title="Local data", margin=5),
+            pn.Card(s3_file_selector, title="S3 online data", margin=5),
+        )
 
         # Creating the treatment widget
         TreamentWidget = pn.pane.Markdown(
@@ -191,36 +200,37 @@ async def build_ui():
     main_tabs.append((".brim Visualizer", brim_visualizer))
 
     # Metadata tab
-    bls_metadata_widget =  brimview_widgets.BlsMetadata(value=FileSelector.param.data)
-    main_tabs.append(
-        ("Metadata",bls_metadata_widget)
-    )  
+    bls_metadata_widget = brimview_widgets.BlsMetadata(value=FileSelector.param.data)
+    main_tabs.append(("Metadata", bls_metadata_widget))
 
     # === UI Bug workaround ===
-    # Without this, when the tabulator gets data, it comes to the top of the DOM, 
+    # Without this, when the tabulator gets data, it comes to the top of the DOM,
     # even if it's in the non-active tab.
-    # This workaround works in both pyodide and panel serve 
-    # 
+    # This workaround works in both pyodide and panel serve
+    #
     # Putting tabs to dynamic doesn't work in pyodide-converted
-    # Potentially related to: 
+    # Potentially related to:
     # - https://github.com/holoviz/panel/issues/8053
-    # - https://github.com/holoviz/panel/issues/8103 
+    # - https://github.com/holoviz/panel/issues/8103
     bls_metadata_widget.tabulator_visibility = False  # Hidden by default
+
     def control_metadata_widget(active_tab_index):
-        bls_metadata_widget.tabulator_visibility = active_tab_index == 1 # Make sure this magic number corresponds to the metadata tab index
+        bls_metadata_widget.tabulator_visibility = (
+            active_tab_index == 1
+        )  # Make sure this magic number corresponds to the metadata tab index
         print(f"Metadata tab active: {bls_metadata_widget.tabulator_visibility}")
+
     pn.bind(control_metadata_widget, main_tabs.param.active, watch=True)
     # ======
 
     # "Treatement" tab
     main_tabs.append(("Do spectrum treatement", analyser_placeholder))
 
-
     # ======
     # Populate the sidebar
     sidebar.append(file_widget)
-    sidebar.append(FileSelector)
     sidebar.append(sampledata_selector)
+    sidebar.append(FileSelector)
     sidebar.append(pn.VSpacer())
 
     print("Done building UI")
