@@ -8,7 +8,10 @@ import os
 
 from panel.io import hold
 
-class BlsFileInput(pn.viewable.Viewer):
+from panel.widgets.base import WidgetBase
+from panel.custom import PyComponent
+
+class BlsFileInput(WidgetBase, PyComponent):
     """
     Class to read HDF5 files and select data groups.
     """
@@ -27,7 +30,12 @@ class BlsFileInput(pn.viewable.Viewer):
     data = param.ClassSelector(class_=bls.Data, default=None, precedence=-1)
 
     def __init__(self, **params):
+        params["name"] = "File input"
         super().__init__(**params)
+
+        self.spinner = pn.indicators.LoadingSpinner(
+            value=False, size=20, name="Idle", visible=True
+        )
 
         self.datagroup_selector_widget = pn.widgets.Select.from_param(
             self.param.data_group, name="Data Group"
@@ -35,12 +43,51 @@ class BlsFileInput(pn.viewable.Viewer):
         self.parameter_selector_widget = pn.widgets.Select.from_param(
             self.param.data_parameter, name="Parameter", visible=False
         )
+    
+    @pn.depends("loading", watch=True)
+    def loading_spinner(self):
+        """
+        Controls an additional spinner UI.
+        This goes on top of the `loading` param that comes with panel widgets.
+
+        This is especially usefull in the `panel convert` case,
+        because some UI elements can't updated easily (or at least in the same way as `panel serve`).
+        In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes
+        don't get updated.
+        """
+        with param.parameterized.batch_call_watchers(self.spinner):
+            if self.loading:
+                self.spinner.value = True
+                self.spinner.name = "Loading..."
+                self.spinner.visible = True
+            else:
+                self.spinner.value = False
+                self.spinner.name = "Idle"
+                self.spinner.visible = True
+
+    @pn.depends("bls_file")
+    def header(self):
+        if self.bls_file is None:
+            title = self.name
+        else:
+            title = self.bls_file.filename 
+             
+        return pn.FlexBox(
+            pn.pane.Markdown(f"### {title}"), 
+            self.spinner, 
+            align_content = "space-between", 
+            align_items="center",  # Vertical-ish
+            sizing_mode='stretch_width',
+            justify_content = "space-between"
+        )
 
     def external_file_update(self, file: bls.File):
         """
         Create a new BLS file object from an existing file.
         This is used to create a new BLS file object from a file that has been uploaded.
         """
+        
+        self.loading = True
         if self.bls_file is not None:
             # Manual reset
             self.data_group = None
@@ -48,6 +95,8 @@ class BlsFileInput(pn.viewable.Viewer):
             self.bls_file = None
 
         self.bls_file = file
+
+        self.loading = False
         print(f"New BLS file created: {self.bls_file}")
 
     @param.depends("local_file", watch=True)
@@ -190,6 +239,7 @@ class BlsFileInput(pn.viewable.Viewer):
 
     def __panel__(self):
         return pn.Column(
+            self.header,
             pn.widgets.Toggle.from_param(
                 self.param.write_allowed,
                 icon="pencil",

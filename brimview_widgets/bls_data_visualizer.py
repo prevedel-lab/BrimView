@@ -686,6 +686,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             fixed_end=0,
             fixed_start=0,  # These will be updated in _update_axis_3
             disabled=True,
+            margin=5
         )
 
         axis_options = pn.Card(

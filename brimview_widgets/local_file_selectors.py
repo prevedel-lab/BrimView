@@ -129,7 +129,16 @@ class TinkerFileSelector(pn.viewable.Viewer):
 
     def __panel__(self):
         return pn.FlexBox(
-            self.filedialog_button,
-            self.dragNdrop_button,
-            self.s3FileSelector,
+            pn.Card(
+                self.filedialog_button,
+                self.dragNdrop_button,
+                title="Local data",
+                margin=5
+
+            ), 
+            pn.Card(
+                self.s3FileSelector,
+                title="S3 online data",
+                margin=5
+            )
         )
