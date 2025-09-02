@@ -142,7 +142,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             return amplitude * (eta * l + (1 - eta) * g) + offset
 
         fits = {}
-        qts = self.value.analysis.get_all_quantities_in_image((z,y,x))
+        qts = self.results_at_point
         for peak in self.value.analysis.list_existing_peak_types():
             try:
                 width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
@@ -371,9 +371,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         # Get spectrum data
         if self.value.data is not None:
-            PSD, frequency, PSD_unit, freq_unit = self.value.data.get_spectrum_in_image(
-                (z, y, x)
-            )
+            PSD, frequency, PSD_unit, freq_unit = self.bls_spectrum_in_image
             fits = self._compute_fitted_curves(frequency, z, y, x)
         else:
             PSD, frequency = np.array([]), np.array([])
