@@ -86,7 +86,7 @@ project_file = "./src/index.py"
 output_dir = "pyodide"
 inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
 overwrite_package_path = [
-    ("brimfile", "toAbsoluteUrl('./brimfile-1.1.2-py2.py3-none-any.whl')"),
+    ("brimfile", "toAbsoluteUrl('./brimfile-1.1.3-py2.py3-none-any.whl')"),
     #("brimfile", "'http://localhost:8000/pyodide/brimfile-1.1.1-py2.py3-none-any.whl'"),
     ("brimview_widgets", "toAbsoluteUrl('./brimview_widgets-0.1.1-py3-none-any.whl')"),
     #("bls_panel_app_widgets", "'http://localhost:8000/dist/bls_panel_app_widgets-0.0.1-py3-none-any.whl'"),
