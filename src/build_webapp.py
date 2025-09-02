@@ -91,7 +91,7 @@ overwrite_package_path = [
     ("brimview_widgets", "toAbsoluteUrl('./brimview_widgets-0.1.1-py3-none-any.whl')"),
     #("bls_panel_app_widgets", "'http://localhost:8000/dist/bls_panel_app_widgets-0.0.1-py3-none-any.whl'"),
 ]
-injection_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/async/src/js/zarr_wrapper.js"  # The file you want to prepend
+injection_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/main/src/js/zarr_wrapper.js"  # The file you want to prepend
 injection_function= " \
 function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
   return new URL(relativePath, baseUrl).href; \
@@ -100,7 +100,7 @@ function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
 fileinput_clause = " else if (msg.type === 'load_file') {console.log('[From worker - got \"load_file\" msg]'); loadZarrFile(msg.file); self.postMessage({ type: 'file_loaded'});} "
 
 
-src_zarr_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/async/src/js/zarr_file.js"
+src_zarr_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/main/src/js/zarr_file.js"
 dst_zarr_file = pathlib.Path(output_dir) / "zarr_file.js"
 
 use_compiled_flag = True  # Set to True if you want to compile the worker script
@@ -185,7 +185,7 @@ if use_compiled_flag:
 print(">> Replacing worker init inside index.html...")
 html_path = pathlib.Path(html_page)
 text = html_path.read_text()
-pyodideWorker_replacement_text = 'if (!(typeof WebAssembly !== "undefined" && "Suspending" in WebAssembly)) {window.location.assign("./no_jspi.html")};\n\t\t\t' \
+pyodideWorker_replacement_text = 'if (!(typeof WebAssembly !== "undefined" && "Suspending" in WebAssembly)) {window.location.replace("./no_jspi.html")};\n\t\t\t' \
 'const pyodideWorker = new Worker("./index.js", {type: "module"});'
 text = text.replace('const pyodideWorker = new Worker("./index.js");', 
             pyodideWorker_replacement_text)
