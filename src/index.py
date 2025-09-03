@@ -1,4 +1,5 @@
 import sys
+from os import path as os_path
 import panel as pn
 import holoviews as hv
 import xarray as xr  # Force import of xarray
@@ -22,6 +23,12 @@ pn.extension(
 
 print("Hello world")
 print(bls.__version__)
+
+def resource_path(relative_path):
+    # For PyInstaller: get temp folder path
+    if hasattr(sys, '_MEIPASS'):
+        return os_path.join(sys._MEIPASS, relative_path)
+    return relative_path # if not PyInstaller, return the original path
 
 # Templates can't be dynamically changed, so we need to "pre-allocate"
 # The things we need
@@ -64,8 +71,8 @@ layout = pn.template.FastListTemplate(
     title="BrimView - a web-based Brillouin viewer and analyzer",
     header=[header_row],
     sidebar=[sidebar, pn.Spacer(height=30), data_protection, pn.Spacer(height=15), credits],
-    logo="./src/BrimView.png", # relative path to where you call `panel serve`
-    favicon="./src/BrimView.png",
+    logo=resource_path("./src/BrimView.png"), # relative path to where you call `panel serve`
+    favicon=resource_path("./src/BrimView.png"),
     accent="#4099da",
 )
 
