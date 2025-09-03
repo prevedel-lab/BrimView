@@ -1,6 +1,5 @@
 # launcher.py
 import socket
-import threading
 import time
 import webview
 import multiprocessing
@@ -37,6 +36,6 @@ def open_webview(port):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     port = find_free_port()
-    threading.Thread(target=serve_panel,  args=(port,), daemon=True).start()
+    multiprocessing.Process(target=serve_panel,  args=(port,), daemon=True).start()
     open_webview(port)
     sys.exit(0)
