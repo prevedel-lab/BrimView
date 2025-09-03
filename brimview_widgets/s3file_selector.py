@@ -1,5 +1,7 @@
 import panel as pn
 
+from .utils import catch_and_notify
+
 class S3FileSelector(pn.viewable.Viewer):
 
     def __init__(self, **params):
@@ -19,6 +21,7 @@ class S3FileSelector(pn.viewable.Viewer):
             self._load_s3_file, ["enter_pressed"], onlychanged=False
         )
 
+    @catch_and_notify(prefix="<b>Load S3 file: </b>")
     def _load_s3_file(self, event):
         s3_path = self.s3_link.value
         if s3_path:
@@ -27,6 +30,7 @@ class S3FileSelector(pn.viewable.Viewer):
         else:
             print("No file selected.")
     
+    @catch_and_notify(prefix="<b>Open file: </b>")
     def _after_path_select(self, file_path: str):
         if self.process_path_fn is not None:
             self.process_path_fn(file_path)

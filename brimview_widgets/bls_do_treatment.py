@@ -194,6 +194,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
         if self.data_processed:
             self._save_treatment()
 
+    @catch_and_notify(prefix="<b>Treatment: </b>")
     async def _bls_treatement(self):
         if self._bls_treatment_lock.locked():
             raise RuntimeError("BLS treatment is already running!")
@@ -293,7 +294,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
             print(
                 f"Average time for a single spectrum: {1e3*tf/np.prod(len(self.bls_treat.shift)):.2f} ms"
             )
-
+    
     async def _process_data(self):
         # Using yield/generator to display real-time process
         # So we also need to store the results in the class
@@ -368,6 +369,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
             print(f"Async iteration {i} took {duration:.6f} seconds")
         self.data_processed = True
 
+    @catch_and_notify(prefix="<b>Save treatment: </b>")
     async def _save_bls_treatment(self):
         if self.bls_treat is None:
             raise ValueError("No BLS treatment available.")
@@ -415,6 +417,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
             print("More than 2 peaks fitted, unsure how to save that")
         self.bls_reload_file()
 
+    @catch_and_notify(prefix="<b>Save treatment: </b>")
     def _save_treatment(self):
         """
         Perform the treatment on the data.

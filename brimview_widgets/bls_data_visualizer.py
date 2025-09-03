@@ -9,7 +9,7 @@ import xarray as xr
 
 import brimfile as bls
 from .bls_file_input import BlsFileInput
-from .utils import only_on_change
+from .utils import only_on_change, catch_and_notify
 from .widgets import HorizontalEditableIntSlider
 import colorcet as cc
 import pandas as pd
@@ -210,6 +210,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
 
     @param.depends("bls_data", watch=True)
+    @catch_and_notify(prefix="<b>File loading: </b>")
     def _read_bls_data(self):
         """
         This function is called when the bls_data is changed.
@@ -230,6 +231,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
         self.loading = False
 
+    @catch_and_notify(prefix="<b>Update results: </b>")
     def _update_result_list(self):
         if self.bls_data is None:
             self.result_index_dropdown.disabled = True
@@ -249,6 +251,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     @param.depends("result_index", watch=True)  # User IO
     @only_on_change("bls_data", "result_index")
+    @catch_and_notify(prefix="<b>Update results: </b>")
     def _update_result_variable(self):
         if self.bls_data is None or self.result_index is None:
             return
@@ -289,6 +292,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
     @only_on_change(
         "bls_analysis", "result_quantity", "result_peak", "use_physical_units"
     )
+    @catch_and_notify(prefix="<b>Update image: </b>")
     def _update_img_data(self):
         if self.bls_analysis is None:
             self.img_data = np.zeros((512, 512))

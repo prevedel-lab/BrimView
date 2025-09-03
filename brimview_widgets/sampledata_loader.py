@@ -1,5 +1,7 @@
 import panel as pn
 
+from .utils import catch_and_notify
+
 class SampledataLoader(pn.viewable.Viewer):
 
     _sampledata = {
@@ -22,6 +24,7 @@ class SampledataLoader(pn.viewable.Viewer):
             options=list(self._sampledata.keys()),
             width=300)
 
+    @catch_and_notify(prefix="<b>Load S3 file: </b>")
     def _load_s3_file(self, event):
         s3_path = self._sampledata[self.s3_link.value]
         if s3_path:
@@ -30,6 +33,7 @@ class SampledataLoader(pn.viewable.Viewer):
         else:
             print("No file selected.")
     
+    @catch_and_notify(prefix="<b>Open file: </b>")
     def _after_path_select(self, file_path: str):
         if self.process_path_fn is not None:
             self.process_path_fn(file_path)

@@ -7,6 +7,8 @@ from tkinterdnd2 import TkinterDnD, DND_FILES  # Requires tkinterdnd2 library
 
 from .s3file_selector import S3FileSelector
 
+from .utils import catch_and_notify
+
 def load_file_dialog() -> str | None:
     file_path_out = None
     root = tk.Tk()
@@ -115,6 +117,7 @@ class TinkerFileSelector(pn.viewable.Viewer):
         else:
             print("No file selected.")
 
+    @catch_and_notify(prefix="<b>Open file: </b>")
     def _after_path_select(self, file_path: str):
         if self.process_path_fn is not None:
             self.process_path_fn(file_path)

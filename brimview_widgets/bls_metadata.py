@@ -9,6 +9,8 @@ import brimfile as bls
 
 from .bls_file_input import BlsFileInput
 
+from .utils import catch_and_notify
+
 class BlsMetadata(WidgetBase, PyComponent):
     """
         A widget to display the metadata stored in the brim files.
@@ -32,6 +34,7 @@ class BlsMetadata(WidgetBase, PyComponent):
         self.value: bls.Data
 
     @param.depends("value", watch=True)
+    @catch_and_notify(prefix="<b>Update metadata: </b>")
     def _update_tabulator(self):
         print("Updating metadata tabulator")
         if self.value is None:

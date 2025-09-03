@@ -11,6 +11,8 @@ from panel.io import hold
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 
+from .utils import catch_and_notify
+
 class BlsFileInput(WidgetBase, PyComponent):
     """
     Class to read HDF5 files and select data groups.
@@ -100,6 +102,7 @@ class BlsFileInput(WidgetBase, PyComponent):
         print(f"New BLS file created: {self.bls_file}")
 
     @param.depends("local_file", watch=True)
+    @catch_and_notify(prefix="<b>Open file: </b>")
     def _process_fileDropper(self):
         if self.local_file is None:
             return
@@ -118,12 +121,8 @@ class BlsFileInput(WidgetBase, PyComponent):
             f.write(file_bytes)
 
         # Now load the file using your custom BLS loader
-        try:
-
-            self.bls_file = bls.File(file_path, mode=self._file_open_mode())
-            print(f"Loaded file: {file_path}")
-        except Exception as e:
-            print(f"Failed to load file: {e}")
+        self.bls_file = bls.File(file_path, mode=self._file_open_mode())
+        print(f"Loaded file: {file_path}")
 
     def _file_open_mode(self):
         if self.write_allowed:
@@ -133,6 +132,7 @@ class BlsFileInput(WidgetBase, PyComponent):
         return mode
 
     @param.depends("debug", watch=True)
+    @catch_and_notify(prefix="<b>Open file: </b>")
     def _load_file(self):
         print("Loading file")
         if self.debug:
@@ -188,6 +188,7 @@ class BlsFileInput(WidgetBase, PyComponent):
                 self.datagroup_selector_widget.disabled = True
 
     @param.depends("data_group", watch=True)
+    @catch_and_notify(prefix="<b>Update data: </b>")
     def _update_data(self):
         print("_update_data")
         if self.bls_file is not None and self.data_group is not None:
@@ -197,6 +198,7 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data = None
 
     @param.depends("data", watch=True)
+    @catch_and_notify(prefix="<b>Update parameters: </b>")
     def _update_parameters(self):
         if self.data is not None:
             (parameters, names) = self.data.get_parameters()
@@ -217,12 +219,13 @@ class BlsFileInput(WidgetBase, PyComponent):
         return self.bls_file
 
     @hold()
+    @catch_and_notify(prefix="<b>Reload fle: </b>")
     def reload_file(self):
         """Reload the BLS file, keeping the current data group and parameters.
         This is useful if the you're writing some new content to the file, and
         you want to make sure the writing buffer is flushed and the file is reloaded.
 
-        (for example, in case of .zip storage, makes sur the data index file is updated)
+        (for example, in case of .zip storage, makes sure the data index file is updated)
         """
         if self.bls_file is not None:
             # Keep info about what's currently loaded

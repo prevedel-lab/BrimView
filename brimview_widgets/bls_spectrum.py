@@ -13,6 +13,8 @@ import time
 import brimfile as bls
 from .bls_data_visualizer import BlsDataVisualizer
 
+from .utils import catch_and_notify
+
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 from .types import bls_param
@@ -117,6 +119,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         # the card display (background color, shadows)
         self.css_classes.append("card")
 
+    @catch_and_notify(prefix="<b>Compute fitted curves: </b>")
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
         if not self.display_fit:
             return []
@@ -249,6 +252,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         return curves
 
     @pn.depends("dataset_zyx_coord", watch=True, on_init=False)
+    @catch_and_notify(prefix="<b>Retrieve data: </b>")
     def retrieve_point_rawdata(self):
         self.loading = True
         now = time.time()
@@ -293,6 +297,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
     # TODO watch=true for side effect ?
     @pn.depends("results_at_point", "fitted_curves", "value", on_init=False)
+    @catch_and_notify(prefix="<b>Plot spectrum: </b>")
     def plot_spectrum(self):
         self.loading = True
         now = time.time()
@@ -344,6 +349,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             title=f"Spectrum at index (z={z}, y={y}, x={x})",
         )
 
+    @catch_and_notify(prefix="<b>Export metadata: </b>")
     def _export_experiment_metadata(self) -> str:
         full_metadata = {}
         for type_name, type_dict in (
@@ -377,6 +383,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         header = "\n".join(f"# {line}" for line in header.splitlines())
         return header
 
+    @catch_and_notify(prefix="<b>Export CSV: </b>")
     def csv_export(self):
         """
         Create a (temporary) CSV file, with the data from the current plot. This file can then be downloaded.
