@@ -178,7 +178,8 @@ async def build_ui():
 
         # Creating the treatment widget
         TreamentWidget = pn.pane.Markdown(
-            "This widget is not available in the Pyodide version of the app. "
+            #TODO: add link to download page
+            "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here]()"
         )
         analyser_placeholder.append(TreamentWidget)
 
