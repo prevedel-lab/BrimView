@@ -30,8 +30,8 @@ def serve_panel(port):
 def open_webview(port):
     # Delay to wait for server to start
     time.sleep(2)
-    webview.create_window("BrimView", f"http://localhost:{port}")
-    webview.start()
+    window = webview.create_window("BrimView", f"http://localhost:{port}")
+    webview.start(window.maximize, icon="./BrimView.png")
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
