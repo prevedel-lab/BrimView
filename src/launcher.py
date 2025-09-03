@@ -31,7 +31,7 @@ def serve_panel(port):
 def open_webview(port):
     # Delay to wait for server to start
     time.sleep(2)
-    webview.create_window("My Panel App", f"http://localhost:{port}")
+    webview.create_window("BrimView", f"http://localhost:{port}")
     webview.start()
 
 if __name__ == '__main__':
