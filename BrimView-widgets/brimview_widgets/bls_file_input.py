@@ -270,15 +270,20 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data = self.bls_file.get_data(data_index)
 
     def __panel__(self):
-        return pn.Column(
-            self.header,
-            pn.widgets.Toggle.from_param(
+        if pn.state._is_pyodide:
+            rw_toggle = None 
+        else:
+            rw_toggle = pn.widgets.Toggle.from_param(
                 self.param.write_allowed,
                 icon="pencil",
                 name="Open with Write Access",
                 button_type="warning",
                 button_style="outline",
-            ),
+            )
+            
+        return pn.Column(
+            self.header,
+            rw_toggle,
             self.datagroup_selector_widget,
             self.data_group_index_widget,
             self.parameter_selector_widget,
