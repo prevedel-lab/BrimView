@@ -154,7 +154,7 @@ async def build_ui():
         # Creating the treatment widget
         TreamentWidget = pn.pane.Markdown(
             # TODO: add link to download page
-            "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here]()"
+            "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here](https://github.com/prevedel-lab/BrimView/releases/latest)"
         )
         analyser_placeholder.append(TreamentWidget)
 
