@@ -42,4 +42,5 @@ remote-store = [ "brimfile[remote-store]"]
 
 [project.urls]
 Homepage = "https://github.com/prevedel-lab/BrimView"
+Repository = "https://github.com/prevedel-lab/BrimView/tree/main/BrimView-widgets"
 Issues = "https://github.com/prevedel-lab/BrimView/issues"
