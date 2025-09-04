@@ -9,8 +9,8 @@ import platform
 ROOT = Path(__file__).parent.parent.resolve() # This file resides in {project}/src/
 PYODIDE_DIR = ROOT / "pyodide"
 DEPENDENCIES = [
-    ROOT / "../BrimView-widgets",
-    ROOT / "../brimfile",
+    ROOT / "./BrimView-widgets",
+#    ROOT / "../brimfile",
 ]
 
 def venv_python(path: Path) -> Path:
@@ -26,8 +26,10 @@ def run(cmd, cwd):
 
 def build_package(path: Path):
     python_exe = venv_python(path)
-    if not python_exe.exists():
-        raise RuntimeError(f"Expected venv python not found: {python_exe}")
+    if not python_exe.exists():        
+        print(f"Expected venv python not found: {python_exe}")
+        python_exe = venv_python(ROOT)
+        print(f"Using root venv python instead: {python_exe}")
     
     dist = path / "dist"
     if dist.exists():

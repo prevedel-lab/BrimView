@@ -24,11 +24,13 @@ pn.extension(
 print("Hello world")
 print(bls.__version__)
 
+
 def resource_path(relative_path):
     # For PyInstaller: get temp folder path
-    if hasattr(sys, '_MEIPASS'):
+    if hasattr(sys, "_MEIPASS"):
         return os_path.join(sys._MEIPASS, relative_path)
-    return relative_path # if not PyInstaller, return the original path
+    return relative_path  # if not PyInstaller, return the original path
+
 
 # Templates can't be dynamically changed, so we need to "pre-allocate"
 # The things we need
@@ -47,96 +49,59 @@ github_icon = pn.pane.HTML(
 )
 header_row = pn.Row(pn.layout.HSpacer(), github_icon)
 
-data_protection = pn.Row(pn.Card(
-    pn.pane.HTML("When you upload a file from your computer, it is processed <b>locally in your browser</b> and <b>never sent to any server</b>."),
-    hide_header = True,
-    title = "Data protection",
-    styles={'background': 'White'},
-    sizing_mode="stretch_width",
-    collapsible = False
-    ))
+data_protection = pn.Row(
+    pn.Card(
+        pn.pane.HTML(
+            "When you upload a file from your computer, it is processed <b>locally in your browser</b> and <b>never sent to any server</b>."
+        ),
+        hide_header=True,
+        title="Data protection",
+        styles={"background": "White"},
+        sizing_mode="stretch_width",
+        collapsible=False,
+    )
+)
 
-credits = pn.Row(pn.Card(
-    pn.pane.HTML("If you encounter any issue, please open a <a href='https://github.com/prevedel-lab/BrimView/issues'>GitHub issue</a>."),
-    pn.pane.HTML("<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p>",),
-    hide_header = True,
-    title = "Credits",
-    styles={'background': 'White'},
-    sizing_mode="stretch_width",
-    collapsible = False
-    ))
+credits = pn.Row(
+    pn.Card(
+        pn.pane.HTML(
+            "If you encounter any issue, please open a <a href='https://github.com/prevedel-lab/BrimView/issues'>GitHub issue</a>."
+        ),
+        pn.pane.HTML(
+            "<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p>",
+        ),
+        hide_header=True,
+        title="Credits",
+        styles={"background": "White"},
+        sizing_mode="stretch_width",
+        collapsible=False,
+    )
+)
 
 # Assembling the temaplte together
 layout = pn.template.FastListTemplate(
     title="BrimView - a web-based Brillouin viewer and analyzer",
     header=[header_row],
-    sidebar=[sidebar, pn.Spacer(height=30), data_protection, pn.Spacer(height=15), credits],
-    logo=resource_path("./src/BrimView.png"), # relative path to where you call `panel serve`
+    sidebar=[
+        sidebar,
+        pn.Spacer(height=30),
+        data_protection,
+        pn.Spacer(height=15),
+        credits,
+    ],
+    logo=resource_path(
+        "./src/BrimView.png"
+    ),  # relative path to where you call `panel serve`
     favicon=resource_path("./src/BrimView.png"),
     accent="#4099da",
 )
 
 layout.main.append(main_tabs)
 
-
-# This class needs to be defined here,
-# Or else we get some Bokeh error:
-# > Could not resolve type 'JSFileInput1', which could be due to
-# > a widget or a custom model not being registered before first usage
-class JSFileInput(pn.custom.JSComponent):
-
-    def __init__(self, **params):
-        super().__init__(**params)
-        self.update_function = None  # Placeholder for the update function
-
-    def set_update_function(self, update_function):
-        """
-        ```
-        > self.update_function(_zarrFile)
-        ```
-        """
-        self.update_function = update_function
-
-    # bls_file = param.ClassSelector(class_=bls.File, default=None, precedence=-1, doc="The BLS file loaded by the FileInput widget")
-    # this will never be executed because 'model' can't be posted to the worker
-    def _handle_msg(self, msg):
-        print(f"[python] handle msg ! {msg}")
-        if msg["msg_type"] == "file_loaded":
-            print("file loaded !")
-            # the file was successfully loaded!
-            if "bls_file" not in globals():
-                raise ValueError("Something went wrong with loading the file!")
-            bls_file = globals()["bls_file"]
-            if self.update_function is not None:
-                print("Calling update function")
-                self.update_function(bls_file)
-
-    _esm = """  
-    export function render({ model }) {
-    const file_input = document.createElement("input");
-    file_input.type = "file";
-    file_input.id = "file_input";
-    //file_input.accept = ".h5,.hdf5";
-    file_input.addEventListener("change", async (event) => {
-            const file = event.target.files[0];
-            //'model' can't be posted to the worker, so we have to find a different solution to notify the FileInput object
-
-            // Set up a temporary message handler - We need to react to messages from the worker
-            const onPyodideMessage = (event) => {
-            const msg = event.data;
-            console.log("[_esm] Received message from Pyodide worker:", msg);
-            if (msg.type === "file_loaded") {
-                model.send_msg({ msg_type: "file_loaded"});
-            }
-            };
-            pyodideWorker.addEventListener("message", onPyodideMessage, { once: true });
-
-            console.log("Sending 'load_file' message to Pyodide worker");
-            pyodideWorker.postMessage({type: "load_file", file: file});
-        });
-    return file_input
-    }
-    """
+if pn.state._is_pyodide:
+    # This apparently needs to be loaded here to work nicely
+    custom_file_loader = brimview_widgets.CustomJSFileInput()
+    sidebar.append(custom_file_loader)
 
 
 # UI constructor (shared)
@@ -147,20 +112,24 @@ async def build_ui():
     print("Building UI")
     if "pyodide" in sys.modules:  # We're in the Pyodide case
         # Creating the file input widget
-        js_file_widget = JSFileInput()
+
         FileSelector = brimview_widgets.BlsFileInput()
-        js_file_widget.set_update_function(FileSelector.external_file_update)
+        custom_file_loader.set_update_function(FileSelector.external_file_update)
 
         s3_file_selector = brimview_widgets.S3FileSelector()
 
         def load_s3_file(file_path):
+            """
+            This funciton is used to load a zarr file from S3 in pyodide.
+            It uses the `loadZarrFile` function defined in `index.js`
+            """
             from js import loadZarrFile
 
             if not loadZarrFile(file_path):
                 raise ValueError(f"Failed to load file {file_path} from S3")
-            if "bls_file" not in globals():
-                raise ValueError("Something went wrong with loading the file!")
-            bls_file = globals()["bls_file"]
+                        
+            # loadZarrFile stores the bls_file in the global scope of the CustomJSFileInput module
+            bls_file = brimview_widgets.CustomJSFileInput().get_global_bls()
             return bls_file
 
         s3_file_selector.set_update_function(
@@ -179,13 +148,12 @@ async def build_ui():
         )
 
         file_widget = pn.layout.FlexBox(
-            pn.Card(js_file_widget, title="Local data", margin=5),
             pn.Card(s3_file_selector, title="S3 online data", margin=5),
         )
 
         # Creating the treatment widget
         TreamentWidget = pn.pane.Markdown(
-            #TODO: add link to download page
+            # TODO: add link to download page
             "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here]()"
         )
         analyser_placeholder.append(TreamentWidget)
@@ -251,7 +219,6 @@ async def build_ui():
 
     # "Treatement" tab
     main_tabs.append(("(Re-)analyze spectra", analyser_placeholder))
-
 
     # ======
     # Populate the sidebar

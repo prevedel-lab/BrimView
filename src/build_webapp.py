@@ -91,7 +91,10 @@ overwrite_package_path = [
     ("brimview_widgets", "toAbsoluteUrl('./brimview_widgets-0.1.1-py3-none-any.whl')"),
     #("bls_panel_app_widgets", "'http://localhost:8000/dist/bls_panel_app_widgets-0.0.1-py3-none-any.whl'"),
 ]
-injection_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/main/src/js/zarr_wrapper.js"  # The file you want to prepend
+
+brimfile_branch = "pyodide_widgets" # or "main"
+
+injection_file = f"https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/{brimfile_branch}/src/js/zarr_wrapper.js"  # The file you want to prepend
 injection_function= " \
 function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
   return new URL(relativePath, baseUrl).href; \
@@ -99,8 +102,7 @@ function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
 
 fileinput_clause = " else if (msg.type === 'load_file') {console.log('[From worker - got \"load_file\" msg]'); loadZarrFile(msg.file); self.postMessage({ type: 'file_loaded'});} "
 
-
-src_zarr_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/main/src/js/zarr_file.js"
+src_zarr_file = f"https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/{brimfile_branch}/src/js/zarr_file.js"
 dst_zarr_file = pathlib.Path(output_dir) / "zarr_file.js"
 
 use_compiled_flag = True  # Set to True if you want to compile the worker script
