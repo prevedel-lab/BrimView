@@ -71,21 +71,24 @@ def replace_pyodide_version(js_path, new_version):
         raise ValueError("Pyodide importScripts line not found in the JS file.")
 
     # Replace version in the matched URL
-    replacement = f'importScripts("https://cdn.jsdelivr.net/pyodide/v{new_version}/pyc/pyodide.js");'
+    replacement = f'import {{ loadPyodide }} from "https://cdn.jsdelivr.net/pyodide/v{new_version}/pyc/pyodide.mjs";'
+    #replacement = f'importScripts("https://cdn.jsdelivr.net/pyodide/v{new_version}/pyc/pyodide.js");'
     updated_content = pattern.sub(replacement, content)
 
     with open(js_path, 'w', encoding='utf-8') as f:
         f.write(updated_content)
 
     print(f">> Updated Pyodide version to v{new_version} in {js_path}")
+
+
 # === Settings ===
 project_file = "./src/index.py"
 output_dir = "pyodide"
-inject_mock_packages = [("zarr", "3.0.0")]
+inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
 overwrite_package_path = [
-    ("brimfile", "toAbsoluteUrl('./brimfile-1.1.1-py2.py3-none-any.whl')"),
+    ("brimfile", "toAbsoluteUrl('./brimfile-1.1.3-py2.py3-none-any.whl')"),
     #("brimfile", "'http://localhost:8000/pyodide/brimfile-1.1.1-py2.py3-none-any.whl'"),
-    ("bls_panel_app_widgets", "toAbsoluteUrl('./bls_panel_app_widgets-0.0.3-py3-none-any.whl')"),
+    ("brimview_widgets", "toAbsoluteUrl('./brimview_widgets-0.1.1-py3-none-any.whl')"),
     #("bls_panel_app_widgets", "'http://localhost:8000/dist/bls_panel_app_widgets-0.0.1-py3-none-any.whl'"),
 ]
 injection_file = "https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/main/src/js/zarr_wrapper.js"  # The file you want to prepend
@@ -94,7 +97,6 @@ function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
   return new URL(relativePath, baseUrl).href; \
 }"
 
-zarrjs_init = "init_zarr_wrapper();"
 fileinput_clause = " else if (msg.type === 'load_file') {console.log('[From worker - got \"load_file\" msg]'); loadZarrFile(msg.file); self.postMessage({ type: 'file_loaded'});} "
 
 
@@ -106,6 +108,7 @@ pyodide_version = "0.28.0"  # Specify the desired Pyodide version -- needed for 
 
 # Determine output JS filename from project_file
 worker_script = f"{output_dir}/{pathlib.Path(project_file).with_suffix('.js').name}"
+html_page = f"{output_dir}/{pathlib.Path(project_file).with_suffix('.html').name}"
 # === Step 1: Convert to Pyodide worker ===
 print(">> Converting with panel...")
 if use_compiled_flag:
@@ -123,6 +126,7 @@ else:
 print(">> Reading injection files...")
 prepend_code = download_text(injection_file)
 worker_code = pathlib.Path(worker_script).read_text()
+
 
 # === Step 3.1: Generate mock package injection code
 print(">> Injecting mock packages before micropip install")
@@ -144,10 +148,6 @@ match = re.search(pattern, patched_body)
 if not match:
     raise RuntimeError("❌ Could not find 'await self.pyodide.runPythonAsync(code)' block to inject before.")
 
-# Insert function call before await line
-injected_block = f"{zarrjs_init}\n  {match.group(1)}"
-patched_body = patched_body[:match.start()] + injected_block + patched_body[match.end():]
-
 # === Step 4: Inject the conditional clause for the file input
 print(">> Injecting function call into Worker...")
 pattern = r"(else if \(msg\.type === 'patch'\))"
@@ -160,7 +160,7 @@ patched_body = patched_body[:match.start()] + injected_block + patched_body[matc
 
 # === Step 5: Combine and save
 print(">> Saving patched worker script...")
-final_code = prepend_code.rstrip() + "\n\n" + injection_function + "\n\n" + patched_body
+final_code = patched_body + "\n\n" + prepend_code.rstrip() + "\n\n" + injection_function + "\n\n" 
 pathlib.Path(worker_script).write_text(final_code)
 
 
@@ -180,5 +180,15 @@ for overwrite in overwrite_package_path:
 if use_compiled_flag:
     print(">> Replacing Pyodide version in worker script...")
     replace_pyodide_version(worker_script, pyodide_version)
+
+# === 9: Replace 
+print(">> Replacing worker init inside index.html...")
+html_path = pathlib.Path(html_page)
+text = html_path.read_text()
+pyodideWorker_replacement_text = 'if (!(typeof WebAssembly !== "undefined" && "Suspending" in WebAssembly)) {window.location.replace("./no_jspi.html")};\n\t\t\t' \
+'const pyodideWorker = new Worker("./index.js", {type: "module"});'
+text = text.replace('const pyodideWorker = new Worker("./index.js");', 
+            pyodideWorker_replacement_text)
+html_path.write_text(text)
 
 print(f"✅ Build complete. Patched worker saved to {worker_script}")

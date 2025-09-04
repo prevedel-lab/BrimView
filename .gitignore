@@ -3,3 +3,5 @@ build/*
 pyodide/*
 my_cache.sqlite
 .env
+bls_examples/*
+src/pn_test.py

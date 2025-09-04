@@ -6,11 +6,11 @@ datas += copy_metadata('pandas')
 
 
 a = Analysis(
-    ['src\\launcher.py'],
+    ['src/launcher.py'],
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=['brimfile', 'bls_panel_app_widgets', 'pandas'],
+    hiddenimports=['brimfile', 'brimview_widgets', 'pandas', 's3fs'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -26,7 +26,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='launcher',
+    name='BrimView',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,3 +40,8 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
+
+app = BUNDLE(exe,
+         name='BrimView.app',
+         icon='src/BrimView.png',
+         bundle_identifier=None)

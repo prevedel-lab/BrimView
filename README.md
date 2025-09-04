@@ -7,18 +7,15 @@
 
 ## Internal dev notes
 ### `panel serve`
-- `pip install panel`
-- `pip install ../brimfile`
-- `pip install ../bls-app-panel` (this needs to become it's own proper package - bls_panel_app_widgets)
-Also (manual, but should come as dependencies from bls-app-panel)
-- `pip install holoviews, xarray, scipy, numpy`
-- `pip install tkinterdnd2`
-- `pip install HDF5_BLS_treat`
+Go on https://github.com/prevedel-lab/BrimView-widgets and download the .whl
+- `pip install brimview-widgets[processing, localfile, remote-store]` (automatically install brimfile and panel - use the .whl for the moment)
+> or `pip install ".\path\to\brimview-widget.whl[processing, localfile, remote-store]"`
 Now you can call `panel serve ./src/index.py` !
 
 ### Pyodide
 - `pip install requests_cache`
 - copy the wheels of brimfile and bls_panel_app_widgets into the pyodide folder
+- run `py ./src/build_webapp.py`
 - start the webserver: `py ./src/run_server.py`
 
 ### PyInstaller

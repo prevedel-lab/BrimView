@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" >
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>BrimView - a web-based Brillouin viewer and analyzer</title>
+        <link rel="icon" type="image/png" href="./BrimView.png"/>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    
+        <style>
+            .browser-supported  {
+                color: DarkGreen;
+                font-weight: bold;
+            }
+            .browser-experimental  {
+                color: Orange;
+                font-weight: bold;
+            }
+            .browser-not-supported  {
+                color: red;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <header class="d-flex py-3 mb-4 border-bottom" style="background-color: rgb(64, 153, 218); justify-content: flex-start; align-items: center; column-gap: 15px;">
+            <div style="height: 60px; width: auto; display: flex; padding-left: 10px;">
+                <img src="./BrimView.png" width="364" height="237" style="vertical-align: middle; height: auto; width: auto;">
+            </div>
+            <div style="padding-right: 10px; padding-left: 10px;">
+                <span style="color:white; font-weight: 400; font-size: 28px; font-family:aktiv-grotesk, 'Segoe UI', Arial, Helvetica, sans-serif;">BrimView - a web-based Brillouin viewer and analyzer</span>
+            </div>
+            <div style="margin-left: auto; display: flex; margin-left:auto; padding-right:15px;">
+                <a href="https://github.com/prevedel-lab/BrimView" target="_blank" style="text-decoration: none;">                    
+                    <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="32" height="32">                    
+                </a>
+            </div>
+        </header>
+        <div class="container my-5">
+            <div class="p-5 text-center bg-body-tertiary rounded-3">
+                <h1 class="text-body-emphasis">Your browser is not supported</h1>
+                <p class="fs-3 text text-body-secondary">Please first make sure you have the latest version of the browser. For the major browsers:</p>
+                <ul class="list-group">
+                    <li class="list-group-item">
+                        We currently support only the latest version of <span class="browser-supported">Chrome</span> and <span class="browser-supported">Edge</span> out of the box.
+                    </li> 
+                    <li class="list-group-item">
+                        <span class="browser-experimental">Firefox</span> can be used by first enabling JS Promise integration. <a data-bs-toggle="collapse" href="#FirefoxEnableJSPI" role="button" aria-expanded="false" aria-controls="FirefoxEnableJSPI">How to do it?</a>
+                        <div class="collapse" id="FirefoxEnableJSPI">                            
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Enabling JSPI in Firefox</h5>
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item">Make sure you have the latest version of Firefox installed</li>
+                                        <li class="list-group-item">Open a new tab and navigate to <code>about:config</code></li>
+                                        <li class="list-group-item">Search for <code>wasm_js_promise_integration</code> and set it to true</li>
+                                        <li class="list-group-item">Restart Firefox</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </li> 
+                    <li class="list-group-item">
+                        <span class="browser-not-supported">Safari</span> can't work as <a href="https://webassembly.org/features/">it doesn't support JS Promise integration</a>.
+                    </li> 
+                </ul>
+                <p class="fs-3 text text-body-secondary">Alternatively, you can download the app for <a href="">Windows</a> or <a href="">Mac</a>.</p>
+            </div>  
+            <div class="card">
+                <div class="card-body">
+                    If you believe your are getting this message despite your browser supporting JSPI, you can open a <a href="https://github.com/prevedel-lab/BrimView/issues">GitHub issue <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="26" height="26" style="vertical-align: middle;"></a>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
+    </body>
+</html>

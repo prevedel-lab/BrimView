@@ -1,6 +1,5 @@
 # launcher.py
 import socket
-import threading
 import time
 import webview
 import multiprocessing
@@ -31,12 +30,12 @@ def serve_panel(port):
 def open_webview(port):
     # Delay to wait for server to start
     time.sleep(2)
-    webview.create_window("My Panel App", f"http://localhost:{port}")
-    webview.start()
+    window = webview.create_window("BrimView", f"http://localhost:{port}")
+    webview.start(window.maximize, icon="./BrimView.png")
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     port = find_free_port()
-    threading.Thread(target=serve_panel,  args=(port,), daemon=True).start()
+    multiprocessing.Process(target=serve_panel,  args=(port,), daemon=True).start()
     open_webview(port)
     sys.exit(0)
