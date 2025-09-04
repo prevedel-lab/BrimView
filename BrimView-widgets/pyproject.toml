@@ -41,5 +41,5 @@ localfile = ["tkinterdnd2"]
 remote-store = ["fsspec", "brimfile[remote-store]"]
 
 [project.urls]
-Homepage = "https://github.com/prevedel-lab/BrimView-widgets"
-Issues = "https://github.com/prevedel-lab/BrimView-widgets/issues"
+Homepage = "https://github.com/prevedel-lab/BrimView"
+Issues = "https://github.com/prevedel-lab/BrimView/issues"
