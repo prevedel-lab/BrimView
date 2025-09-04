@@ -92,7 +92,7 @@ overwrite_package_path = [
     #("bls_panel_app_widgets", "'http://localhost:8000/dist/bls_panel_app_widgets-0.0.1-py3-none-any.whl'"),
 ]
 
-brimfile_branch = "pyodide_widgets" # or "main"
+brimfile_branch = "main" # or "main"
 
 injection_file = f"https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/{brimfile_branch}/src/js/zarr_wrapper.js"  # The file you want to prepend
 injection_function= " \
