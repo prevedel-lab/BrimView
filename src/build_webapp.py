@@ -83,6 +83,7 @@ def replace_pyodide_version(js_path, new_version):
 
 # === Settings ===
 project_file = "./src/index.py"
+no_jspi_file = "./src/no_jspi.html"
 output_dir = "pyodide"
 inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
 overwrite_package_path = [
@@ -193,4 +194,7 @@ text = text.replace('const pyodideWorker = new Worker("./index.js");',
             pyodideWorker_replacement_text)
 html_path.write_text(text)
 
+# === Step 10: Copy zarr_file.js to output folder
+print(">> Copying no_jspi.html to output folder...")
+shutil.copy2(no_jspi_file, output_dir)
 print(f"✅ Build complete. Patched worker saved to {worker_script}")
