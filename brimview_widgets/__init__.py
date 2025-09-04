@@ -11,8 +11,9 @@ from .bls_metadata import BlsMetadata
 
 # Keep treatment widget out of the wasm package
 if "pyodide" in sys.modules:
-    #from .browser_file_selectors import JSFileInput
+    from .browser_file_selectors import CustomJSFileInput
     pass #JSFileInput needs to be in the main python file, not in the widgets package
 else:
+    from .browser_file_selectors import CustomJSFileInput
     from .local_file_selectors import TinkerFileSelector
     from .bls_do_treatment import BlsDoTreatment
