@@ -1,0 +1,3 @@
+.venv/*
+dist/*
+brimview_widgets/__pycache__/*
