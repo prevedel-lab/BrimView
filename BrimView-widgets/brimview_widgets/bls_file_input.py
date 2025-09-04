@@ -82,22 +82,27 @@ class BlsFileInput(WidgetBase, PyComponent):
         """
         with param.parameterized.batch_call_watchers(self.spinner):
             if self.loading:
+                print("Setting loading spinner to true")
                 self.spinner.value = True
                 self.spinner.name = "Loading..."
                 self.spinner.visible = True
             else:
+                print("Setting loading spinner to false")
                 self.spinner.value = False
                 self.spinner.name = "Idle"
                 self.spinner.visible = True
 
-    @pn.depends("bls_file")
-    def header(self):
+    @pn.depends("bls_file", watch=True)
+    def _update_header(self):
+        # This might be a bit Panel anti-pattern, but it seems to be 
+        # the only way to make it also work as expected in the `panel convert` case
+        # If you returned the header/FlexBox directly, then the spinner wouldn't update later on
         if self.bls_file is None:
             title = self.name
         else:
             title = self.bls_file.filename 
              
-        return pn.FlexBox(
+        self._header = pn.FlexBox(
             pn.pane.Markdown(f"### {title}"), 
             self.spinner, 
             align_content = "space-between", 
@@ -106,22 +111,28 @@ class BlsFileInput(WidgetBase, PyComponent):
             justify_content = "space-between"
         )
 
+    @catch_and_notify(prefix="<b>Loading file: </b>")
     def external_file_update(self, file: bls.File):
         """
         Create a new BLS file object from an existing file.
         This is used to create a new BLS file object from a file that has been uploaded.
         """
-        
-        self.loading = True
-        if self.bls_file is not None:
-            # Manual reset
-            self.data_group = None
-            self.data_parameter = None
-            self.bls_file = None
+        try:
+            self.loading = True
+            if self.bls_file is not None:
+                # Manual reset
+                self.data_group = None
+                self.data_parameter = None
+                self.bls_file = None
 
-        self.bls_file = file
+            self.bls_file = file
+        except Exception as e:
+            # Re-throwing the exception to be caught by the decorator
+            raise e
+        finally:
+            # Making sure the spinner is turned off
+            self.loading = False
 
-        self.loading = False
         print(f"New BLS file created: {self.bls_file}")
 
     @param.depends("local_file", watch=True)
@@ -280,9 +291,10 @@ class BlsFileInput(WidgetBase, PyComponent):
                 button_type="warning",
                 button_style="outline",
             )
-            
+
+        self._update_header()    
         return pn.Column(
-            self.header,
+            self._header,
             rw_toggle,
             self.datagroup_selector_widget,
             self.data_group_index_widget,

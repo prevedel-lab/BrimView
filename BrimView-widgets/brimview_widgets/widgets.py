@@ -27,19 +27,21 @@ class HorizontalEditableIntSlider(pn.widgets.EditableIntSlider):
         self._value_edit.align = "center"
         self._slider.align = "center"
 
+        self._tooltip = pn.widgets.TooltipIcon()
+        self.tooltip_update()
         self._composite.extend(
-            [pn.Row(self._label, self._value_edit), self._slider, self.tooltip]
+            [pn.Row(self._label, self._value_edit), self._slider, self._tooltip]
         )
 
         # Definition found in Widget
         self.margin = (5, 10)  # (vertical, horizontal) or (top, right, bottom, left)
 
-    @pn.depends("fixed_start", "fixed_end", "start", "end", "tooltip_range_or_fixed_range", "tooltip_text")
-    def tooltip(self) -> pn.widgets.TooltipIcon:
+    @pn.depends("fixed_start", "fixed_end", "start", "end", "tooltip_range_or_fixed_range", "tooltip_text", watch=True)
+    def tooltip_update(self):
         if self.tooltip_range_or_fixed_range:
             start = self.start
             end = self.end
         else:
             start = self.fixed_start
             end = self.fixed_end
-        return pn.widgets.TooltipIcon(value=f"{self.tooltip_text} ([{start} ; {end}])")
+        self._tooltip.value = f"{self.tooltip_text} ([{start} ; {end}])"
