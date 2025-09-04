@@ -12,6 +12,7 @@ from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 
 from .utils import catch_and_notify
+from .widgets import HorizontalEditableIntSlider
 
 class BlsFileInput(WidgetBase, PyComponent):
     """
@@ -22,7 +23,10 @@ class BlsFileInput(WidgetBase, PyComponent):
     local_file = param.FileSelector(precedence=-1)
     debug = param.Boolean(default=False, label="Debug Mode")
     write_allowed = param.Boolean(default=False, label="Allowed to write to file")
+
     data_group = param.Selector(default=None, objects=[], label="Select data group")
+    data_group_index = param.Integer(default=0, label="Data group index", precedence=-1)
+
     data_parameter = param.Selector(default=None, label="Select parameter")
 
     # Invisible (from the GUI) field
@@ -40,12 +44,31 @@ class BlsFileInput(WidgetBase, PyComponent):
         )
 
         self.datagroup_selector_widget = pn.widgets.Select.from_param(
-            self.param.data_group, name="Data Group"
+            self.param.data_group, name="Data Group", disabled=True
         )
+        self.data_group_index_widget = HorizontalEditableIntSlider.from_param(
+            self.param.data_group_index, name="Index", disabled=True
+        )
+        self.data_group_index_widget.tooltip_text="Change which data group is displayed"
+        self.data_group_index_widget.tooltip_range_or_fixed_range = True 
+
+        def _link_index_to_group(event):
+            if self.data_group_index is not None and self.data_group is not None:
+                self.data_group = list(self.param.data_group.objects.values())[
+                    self.data_group_index
+                ]
+        def _link_group_to_index(event):
+            if self.data_group is not None and self.data_group_index is not None:
+                index = list(self.param.data_group.objects.values()).index(self.data_group)
+                self.data_group_index = index
+        pn.bind(_link_index_to_group, self.param.data_group_index, watch=True)
+        pn.bind(_link_group_to_index, self.param.data_group, watch=True)
+
         self.parameter_selector_widget = pn.widgets.Select.from_param(
             self.param.data_parameter, name="Parameter", visible=False
         )
     
+
     @pn.depends("loading", watch=True)
     def loading_spinner(self):
         """
@@ -59,22 +82,27 @@ class BlsFileInput(WidgetBase, PyComponent):
         """
         with param.parameterized.batch_call_watchers(self.spinner):
             if self.loading:
+                print("Setting loading spinner to true")
                 self.spinner.value = True
                 self.spinner.name = "Loading..."
                 self.spinner.visible = True
             else:
+                print("Setting loading spinner to false")
                 self.spinner.value = False
                 self.spinner.name = "Idle"
                 self.spinner.visible = True
 
-    @pn.depends("bls_file")
-    def header(self):
+    @pn.depends("bls_file", watch=True)
+    def _update_header(self):
+        # This might be a bit Panel anti-pattern, but it seems to be 
+        # the only way to make it also work as expected in the `panel convert` case
+        # If you returned the header/FlexBox directly, then the spinner wouldn't update later on
         if self.bls_file is None:
             title = self.name
         else:
             title = self.bls_file.filename 
              
-        return pn.FlexBox(
+        self._header = pn.FlexBox(
             pn.pane.Markdown(f"### {title}"), 
             self.spinner, 
             align_content = "space-between", 
@@ -83,22 +111,28 @@ class BlsFileInput(WidgetBase, PyComponent):
             justify_content = "space-between"
         )
 
+    @catch_and_notify(prefix="<b>Loading file: </b>")
     def external_file_update(self, file: bls.File):
         """
         Create a new BLS file object from an existing file.
         This is used to create a new BLS file object from a file that has been uploaded.
         """
-        
-        self.loading = True
-        if self.bls_file is not None:
-            # Manual reset
-            self.data_group = None
-            self.data_parameter = None
-            self.bls_file = None
+        try:
+            self.loading = True
+            if self.bls_file is not None:
+                # Manual reset
+                self.data_group = None
+                self.data_parameter = None
+                self.bls_file = None
 
-        self.bls_file = file
+            self.bls_file = file
+        except Exception as e:
+            # Re-throwing the exception to be caught by the decorator
+            raise e
+        finally:
+            # Making sure the spinner is turned off
+            self.loading = False
 
-        self.loading = False
         print(f"New BLS file created: {self.bls_file}")
 
     @param.depends("local_file", watch=True)
@@ -165,12 +199,14 @@ class BlsFileInput(WidgetBase, PyComponent):
     def _parse_file(self):
         if self.bls_file is None:
             self.datagroup_selector_widget.disabled = True
+            self.data_group_index_widget.disabled = True
             self.param.data_group.objects = {}
             self.data_group = None
 
         else:
             print("Parsing bls_file")
             self.datagroup_selector_widget.disabled = False
+            self.data_group_index_widget.disabled = False
 
             # Making sure the returned list is sorted by index
             cleaned_data_group_list = {}
@@ -181,11 +217,15 @@ class BlsFileInput(WidgetBase, PyComponent):
 
             # Using newly retrieved data groups
             self.param.data_group.objects = cleaned_data_group_list
+            self.data_group_index_widget.end = len(cleaned_data_group_list) - 1
+            self.data_group_index_widget.start = 0
+
             print(f"Data groups: {cleaned_data_group_list.values()}")
             self.data_group = list(cleaned_data_group_list.values())[0]
 
             if len(cleaned_data_group_list) == 1:  # small GUI bonus
                 self.datagroup_selector_widget.disabled = True
+                self.data_group_index_widget.disabled = True
 
     @param.depends("data_group", watch=True)
     @catch_and_notify(prefix="<b>Update data: </b>")
@@ -241,15 +281,22 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data = self.bls_file.get_data(data_index)
 
     def __panel__(self):
-        return pn.Column(
-            self.header,
-            pn.widgets.Toggle.from_param(
+        if pn.state._is_pyodide:
+            rw_toggle = None 
+        else:
+            rw_toggle = pn.widgets.Toggle.from_param(
                 self.param.write_allowed,
                 icon="pencil",
                 name="Open with Write Access",
                 button_type="warning",
                 button_style="outline",
-            ),
+            )
+
+        self._update_header()    
+        return pn.Column(
+            self._header,
+            rw_toggle,
             self.datagroup_selector_widget,
+            self.data_group_index_widget,
             self.parameter_selector_widget,
         )

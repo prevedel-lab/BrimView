@@ -2,6 +2,7 @@ import panel as pn
 import param
 from enum import Enum
 from panel.widgets.base import WidgetBase
+from .utils import catch_and_notify
 
 class JsPyMessage(str, Enum):
     """
@@ -117,6 +118,7 @@ class CustomJSFileInput(WidgetBase):
         )
 
     @classmethod
+    @catch_and_notify(prefix="<b>[CustomJSFileinput.set_global_bls]:</b>")
     def set_global_bls(cls, value):
         """
         Set a global variable `bls_file` to the given value.
@@ -129,6 +131,7 @@ class CustomJSFileInput(WidgetBase):
         print("Set global bls_file")
 
     @classmethod
+    @catch_and_notify(prefix="<b>[CustomJSFileinput.get_global_bls]:</b>")
     def get_global_bls(cls):
         """
         Returns the global variable `bls_file` ("global" for this module).
@@ -145,6 +148,7 @@ class CustomJSFileInput(WidgetBase):
 
 
     @pn.depends("value", watch=True)
+    @catch_and_notify(prefix="<b>[CustomJSFileinput._process_js_msg]:</b>")
     def _process_js_msg(self):
         if self.value == "":
             print("No message to process")
