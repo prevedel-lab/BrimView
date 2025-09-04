@@ -9,7 +9,7 @@
 ### `panel serve`
 Go on https://github.com/prevedel-lab/BrimView-widgets and download the .whl
 - `pip install brimview-widgets[processing, localfile, remote-store]` (automatically install brimfile and panel - use the .whl for the moment)
-> or `pip install ".\path\to\brimview-widget.whl[processing, localfile, remote-store]"`
+> or `pip install -e ".\BrimView-widgets\[processing, localfile, remote-store]"`
 Now you can call `panel serve ./src/index.py` !
 
 ### Pyodide
