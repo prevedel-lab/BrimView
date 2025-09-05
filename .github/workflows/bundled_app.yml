@@ -41,7 +41,7 @@ jobs:
           # copy PyInstaller dist output (adjust if launcher.spec changes output dir/name)
           cp -r dist/* packaged/
           cd packaged
-          if [ "$RUNNER_OS" = "Windows" ]; then
+          if ([ "$RUNNER_OS" = "Windows" ]) then
             powershell Compress-Archive * ../app-${{ runner.os }}.zip
           else
             zip -r ../app-${{ runner.os }}.zip .
