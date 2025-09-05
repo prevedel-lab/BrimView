@@ -1,0 +1,71 @@
+name: Build and Release Bundled App
+
+on:
+  push:
+    tags:
+      - '*'   # runs on any tag push
+  workflow_dispatch:    # <-- allows manual runs for testing
+
+# security: restrict permissions for CI jobs.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # ADJUST THIS: install all dependencies (including pdoc)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install "brimview-widgets[processing, localfile, remote-store]"
+
+      - name: Build with PyInstaller
+        run: pyinstaller launcher.spec --noconfirm
+      
+      - name: Package artifacts
+        run: |
+          mkdir -p packaged
+          # copy PyInstaller dist output (adjust if launcher.spec changes output dir/name)
+          cp -r dist/* packaged/
+          cd packaged
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            powershell Compress-Archive * ../app-${{ runner.os }}.zip
+          else
+            zip -r ../app-${{ runner.os }}.zip .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ runner.os }}
+          path: app-${{ runner.os }}.zip
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
