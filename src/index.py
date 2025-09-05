@@ -68,7 +68,7 @@ credits = pn.Row(
             "If you encounter any issue, please open a <a href='https://github.com/prevedel-lab/BrimView/issues'>GitHub issue</a>."
         ),
         pn.pane.HTML(
-            "<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p>",
+            f"<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p><p><small>brimfile {bls.__version__}, brimview-widgets {brimview_widgets.__version__} </small></p>",
         ),
         hide_header=True,
         title="Credits",
