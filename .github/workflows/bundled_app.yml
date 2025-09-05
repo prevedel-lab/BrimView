@@ -31,6 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install "brimview-widgets[processing, localfile, remote-store]"
+          pip install pywebview
 
       - name: Build with PyInstaller
         run: pyinstaller launcher.spec --noconfirm
@@ -72,7 +73,7 @@ jobs:
         with:
           files: artifacts/**/*.zip
           tag_name: ${{ github.ref_name || 'manual-${{ github.run_id }}' }}
-          name: Release ${{ github.ref_name || 'Manual run #${{ github.run_number }}' }}
+          name: Release ${{ github.ref_name || 'Manual run ${{ github.run_id }}' }}
           # draft: ${{ github.event_name == 'workflow_dispatch' }} # optional: don’t auto-publish manual runs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
