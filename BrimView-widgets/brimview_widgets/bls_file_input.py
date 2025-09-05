@@ -210,10 +210,10 @@ class BlsFileInput(WidgetBase, PyComponent):
 
             # Making sure the returned list is sorted by index
             cleaned_data_group_list = {}
-            data_groups = self.bls_file.list_data_groups()
-            data_groups = sorted(data_groups, key=lambda x: x["index"])
+            # the list is laready ordered by index
+            data_groups = self.bls_file.list_data_groups(retrieve_custom_name=True)
             for data in data_groups:
-                cleaned_data_group_list[data["name"]] = data["index"]
+                cleaned_data_group_list[data["custom_name"]] = data["index"]
 
             # Using newly retrieved data groups
             self.param.data_group.objects = cleaned_data_group_list
