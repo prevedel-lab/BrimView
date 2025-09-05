@@ -35,17 +35,21 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller launcher.spec --noconfirm
       
-      - name: Package artifacts
+      - name: Package artifacts (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p packaged
-          # copy PyInstaller dist output (adjust if launcher.spec changes output dir/name)
           cp -r dist/* packaged/
           cd packaged
-          if ([ "$RUNNER_OS" = "Windows" ]) then
-            powershell Compress-Archive * ../app-${{ runner.os }}.zip
-          else
-            zip -r ../app-${{ runner.os }}.zip .
-          fi
+          zip -r ../app-${{ runner.os }}.zip .
+      
+      - name: Package artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir packaged
+          xcopy dist packaged /E /I
+          cd packaged
+          powershell -Command "Compress-Archive * ../app-${{ runner.os }}.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
