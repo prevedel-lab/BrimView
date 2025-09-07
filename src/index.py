@@ -9,6 +9,8 @@ import tifffile  # Force import of tifffile
 import brimfile as bls  # Force import of brimfile
 import brimview_widgets
 
+__version__ = "0.1.0"
+
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
 pn.extension(
@@ -68,7 +70,7 @@ credits = pn.Row(
             "If you encounter any issue, please open a <a href='https://github.com/prevedel-lab/BrimView/issues'>GitHub issue</a>."
         ),
         pn.pane.HTML(
-            f"<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p><p><small>brimfile {bls.__version__}, brimview-widgets {brimview_widgets.__version__} </small></p>",
+            f"<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p><p><small>BrimView {__version__}, brimfile {bls.__version__}, brimview-widgets {brimview_widgets.__version__} </small></p>",
         ),
         hide_header=True,
         title="Credits",
