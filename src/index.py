@@ -12,7 +12,6 @@ import brimview_widgets
 __version__ = "0.1.0"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
-pn.config.throttled = True # Enables throttling (for the sliders) - values only update when you release the slider
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
 pn.extension(
     raw_css=[

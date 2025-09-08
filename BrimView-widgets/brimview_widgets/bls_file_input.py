@@ -14,6 +14,7 @@ from panel.custom import PyComponent
 from .utils import catch_and_notify
 from .widgets import HorizontalEditableIntSlider
 
+
 class BlsFileInput(WidgetBase, PyComponent):
     """
     Class to read HDF5 files and select data groups.
@@ -47,27 +48,32 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.param.data_group, name="Data Group", disabled=True
         )
         self.data_group_index_widget = HorizontalEditableIntSlider.from_param(
-            self.param.data_group_index, name="Index", disabled=True
+            self.param.data_group_index, name="Index", disabled=True, throttled=True
+        )  # Enabling throttling to avoid too many updates while sliding
+        self.data_group_index_widget.tooltip_text = (
+            "Change which data group is displayed"
         )
-        self.data_group_index_widget.tooltip_text="Change which data group is displayed"
-        self.data_group_index_widget.tooltip_range_or_fixed_range = True 
+        self.data_group_index_widget.tooltip_range_or_fixed_range = True
 
         def _link_index_to_group(event):
             if self.data_group_index is not None and self.data_group is not None:
                 self.data_group = list(self.param.data_group.objects.values())[
                     self.data_group_index
                 ]
+
         def _link_group_to_index(event):
             if self.data_group is not None and self.data_group_index is not None:
-                index = list(self.param.data_group.objects.values()).index(self.data_group)
+                index = list(self.param.data_group.objects.values()).index(
+                    self.data_group
+                )
                 self.data_group_index = index
+
         pn.bind(_link_index_to_group, self.param.data_group_index, watch=True)
         pn.bind(_link_group_to_index, self.param.data_group, watch=True)
 
         self.parameter_selector_widget = pn.widgets.Select.from_param(
             self.param.data_parameter, name="Parameter", visible=False
         )
-    
 
     @pn.depends("loading", watch=True)
     def loading_spinner(self):
@@ -94,21 +100,21 @@ class BlsFileInput(WidgetBase, PyComponent):
 
     @pn.depends("bls_file", watch=True)
     def _update_header(self):
-        # This might be a bit Panel anti-pattern, but it seems to be 
+        # This might be a bit Panel anti-pattern, but it seems to be
         # the only way to make it also work as expected in the `panel convert` case
         # If you returned the header/FlexBox directly, then the spinner wouldn't update later on
         if self.bls_file is None:
             title = self.name
         else:
-            title = self.bls_file.filename 
-             
+            title = self.bls_file.filename
+
         self._header = pn.FlexBox(
-            pn.pane.Markdown(f"### {title}"), 
-            self.spinner, 
-            align_content = "space-between", 
+            pn.pane.Markdown(f"### {title}"),
+            self.spinner,
+            align_content="space-between",
             align_items="center",  # Vertical-ish
-            sizing_mode='stretch_width',
-            justify_content = "space-between"
+            sizing_mode="stretch_width",
+            justify_content="space-between",
         )
 
     @catch_and_notify(prefix="<b>Loading file: </b>")
@@ -282,7 +288,7 @@ class BlsFileInput(WidgetBase, PyComponent):
 
     def __panel__(self):
         if pn.state._is_pyodide:
-            rw_toggle = None 
+            rw_toggle = None
         else:
             rw_toggle = pn.widgets.Toggle.from_param(
                 self.param.write_allowed,
@@ -292,7 +298,7 @@ class BlsFileInput(WidgetBase, PyComponent):
                 button_style="outline",
             )
 
-        self._update_header()    
+        self._update_header()
         return pn.Column(
             self._header,
             rw_toggle,
