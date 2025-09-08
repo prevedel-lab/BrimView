@@ -41,7 +41,7 @@ exe = EXE(
     entitlements_file=None,
 )
 
-app = BUNDLE(exe,
-         name='BrimView.app',
-         icon='src/BrimView.png',
-         bundle_identifier=None)
+# app = BUNDLE(exe,
+#          name='BrimView.app',
+#          icon='src/BrimView.png',
+#          bundle_identifier=None)
