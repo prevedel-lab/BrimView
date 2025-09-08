@@ -12,6 +12,7 @@ import brimview_widgets
 __version__ = "0.1.0"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
+pn.config.throttled = True # Enables throttling (for the sliders) - values only update when you release the slider
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
 pn.extension(
     raw_css=[
@@ -23,8 +24,11 @@ pn.extension(
     ]
 )
 
-print("Hello world")
-print(bls.__version__)
+# --- Usefull debug prints ---
+print("Starting Brimview...")
+print(f"BrimView {__version__}")
+print(f"brimfile {bls.__version__}")
+print(f"brimview-widgets {brimview_widgets.__version__}")
 
 
 def resource_path(relative_path):
@@ -80,7 +84,7 @@ credits = pn.Row(
     )
 )
 
-# Assembling the temaplte together
+# Assembling the template together
 layout = pn.template.FastListTemplate(
     title="BrimView - a web-based Brillouin viewer and analyzer",
     header=[header_row],
