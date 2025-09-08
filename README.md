@@ -24,13 +24,19 @@ Thanks to the data exploration and web app framework [Panel](https://github.com/
 
 - *Web version*: runs entirely in the browser using [Pyodide](https://pyodide.org) and [WebAssembly (WASM)](https://webassembly.org/). It is ideal for quickly inspecting .brim datasets—e.g., assessing data quality—on any computer without requiring installation.
 
-- *Standalone application*: A fully self-contained desktop version built using [PyInstaller](https://pyinstaller.org/) and [PyWebview](https://pywebview.flowrl.com/), suitable for offline use on lab workstations without requiring a Python environment. Pre-built binaries and source code are available in the [releases]()
+- *Standalone application*: A fully self-contained desktop version built using [PyInstaller](https://pyinstaller.org/) and [PyWebview](https://pywebview.flowrl.com/), suitable for offline use on lab workstations without requiring a Python environment. Pre-built binaries and source code are available in the [releases](https://github.com/prevedel-lab/BrimView/releases/latest)
 
 - *Local Panel Server*: This version runs as a local Python server, offering the highest performance and full access to the underlying code for advanced users. It supports custom workflows, batch processing, and direct modification of the visualization or analysis pipeline.
 
+|                        | Local installation required | Internet access required | Performance | Customizability |
+|------------------------|-----------------------------|--------------------------|-------------|-----------------|
+| Web application        | ❌                         | ✔️ *<br/> (to load the page)*  | ⭐ *<br/>(impossible to edit files)*  | ⭐        |
+| Standalone application | ❌                         | ❌                       | ⭐⭐                             | ⭐       |
+| Local Panel server     | ✔️                         | ❌                       | ⭐⭐⭐                          | ⭐⭐⭐   |
+
  
 ## Get started with the development
-Read through this [guide](./dev_getting_started.md) to install the necessary dependancies, and start working on customizing BrimView. 
+Read through this [guide](./dev_getting_started.md) to install the necessary dependencies, and start working on customizing BrimView. 
 
 ## Contributions
 Contributions, issue reports, and feature requests are welcome via this GitHub repository.
@@ -39,4 +45,4 @@ Contributions, issue reports, and feature requests are welcome via this GitHub r
 Sebastian Hambura and Carlo Bevilacqua at [Prevedel lab](https://www.prevedel.embl.de/).
 
 ## License
-Panel is completely free and open-source. It is licensed under the [LGPL-3.0 license](./LICENSE).
+BrimView is completely free and open-source. It is licensed under the [LGPL-3.0 license](./LICENSE).
