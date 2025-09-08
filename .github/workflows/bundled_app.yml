@@ -1,0 +1,86 @@
+name: Build and Release Bundled App
+
+on:
+  push:
+    tags:
+      - '*'   # runs on any tag push
+  workflow_dispatch:    # <-- allows manual runs for testing
+
+# security: restrict permissions for CI jobs.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # ADJUST THIS: install all dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install "brimview-widgets[processing, localfile, remote-store]"
+          pip install pywebview
+
+      - name: Build with PyInstaller
+        run: pyinstaller launcher.spec --noconfirm
+          
+      - name: Package artifacts (Linux/macOs)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p packaged
+          cp -r dist/* packaged/
+          tar -czf app-${{ runner.os }}.tar.gz -C packaged .
+      
+      - name: Package artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir packaged
+          xcopy dist packaged /E /I
+          powershell Compress-Archive -Path packaged/* -DestinationPath app-${{ runner.os }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ runner.os }}
+          path: |
+            app-${{ runner.os }}.zip
+            app-${{ runner.os }}.tar.gz
+          if-no-files-found: ignore
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+      
+      - name: Show contents of artifacts folder
+        run: |
+          echo "Listing contents of artifacts folder:"
+          ls -R artifacts || dir artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*/*.zip
+            artifacts/*/*.tar.gz
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
