@@ -5,14 +5,6 @@ import re
 import shutil
 
 # === Helper functions ===
-import requests
-import requests_cache
-requests_cache.install_cache("my_cache", backend="sqlite", expire_after=86400)  # 1 day
-def download_text(url: str) -> str:
-    response = requests.get(url)
-    response.raise_for_status()  # Raises an error for bad responses (4xx/5xx)
-    return response.text
-
 def generate_mock_package_injection(inject_mock_packages):
     lines = ["import micropip"]
     for name, version in inject_mock_packages:
@@ -93,9 +85,8 @@ overwrite_package_path = [
     #("bls_panel_app_widgets", "'http://localhost:8000/dist/bls_panel_app_widgets-0.0.1-py3-none-any.whl'"),
 ]
 
-brimfile_branch = "main" # or "main"
 
-injection_file = f"https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/{brimfile_branch}/src/js/zarr_wrapper.js"  # The file you want to prepend
+injection_file = f"./src/zarr_wrapper.js"  # The file you want to prepend
 injection_function= " \
 function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
   return new URL(relativePath, baseUrl).href; \
@@ -103,7 +94,7 @@ function toAbsoluteUrl(relativePath, baseUrl = self.location.href) {  \
 
 fileinput_clause = " else if (msg.type === 'load_file') {console.log('[From worker - got \"load_file\" msg]'); loadZarrFile(msg.file); self.postMessage({ type: 'file_loaded'});} "
 
-src_zarr_file = f"https://raw.githubusercontent.com/prevedel-lab/brimfile/refs/heads/{brimfile_branch}/src/js/zarr_file.js"
+src_zarr_file = f"./src/zarr_file.js"
 dst_zarr_file = pathlib.Path(output_dir) / "zarr_file.js"
 
 use_compiled_flag = True  # Set to True if you want to compile the worker script
@@ -127,7 +118,7 @@ else:
 
 # === Step 2: Read original code and prepended JS ===
 print(">> Reading injection files...")
-prepend_code = download_text(injection_file)
+prepend_code = pathlib.Path(injection_file).read_text()
 worker_code = pathlib.Path(worker_script).read_text()
 
 
@@ -169,7 +160,7 @@ pathlib.Path(worker_script).write_text(final_code)
 
 # === Step 6: Copy zarr_file.js to output folder
 print(">> Copying zarr_file.js to output folder...")
-src_zarr_file_txt = download_text(src_zarr_file)
+src_zarr_file_txt = pathlib.Path(src_zarr_file).read_text()
 with open(dst_zarr_file, 'w') as f:
     f.write(src_zarr_file_txt)
 
