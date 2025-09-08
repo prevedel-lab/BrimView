@@ -8,9 +8,11 @@ import holoviews as hv
 from holoviews import streams
 import numpy as np
 import yaml
+import scipy
 
 import time
 import brimfile as bls
+import HDF5_BLS_treat.treat as bls_processing
 from .bls_data_visualizer import BlsDataVisualizer
 
 from .utils import catch_and_notify
@@ -18,6 +20,7 @@ from .utils import catch_and_notify
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 from .types import bls_param
+from .widgets import SwitchWithLabels
 
 
 def _convert_numpy(obj):
@@ -34,6 +37,30 @@ def _convert_numpy(obj):
     else:
         return obj
 
+def models_to_param():
+    models = bls_processing.Models().models
+    model_dict = {}
+    for (key, model) in models.items():
+        model_dict[key] = model
+    return model_dict
+
+class BlsProcessingModels(Enum):
+    Lorentzian = ("Lorentzian", bls_processing.Models.lorentzian)
+    LorentzianElastic = ("Lorentzian Elastic", bls_processing.Models.lorentzian_elastic)
+    DHO = ("DHO", bls_processing.Models.DHO)
+    DHOElastic = ("DHO Elastic", bls_processing.Models.DHO_elastic)
+
+    @property
+    def func(self):
+        return self.value[1]
+    
+    @property
+    def label(self):
+        return self.value[0]
+    
+    @classmethod
+    def to_param_dict(cls):
+        return {m.label: m for m in cls}
 
 class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     """Class to display a spectrum from a pixel in the image."""
@@ -66,6 +93,25 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         default=True, label="Compute and display fit over raw data"
     )
     fit_type = param.Selector(default=Fits.Lorentzian, objects=Fits)
+    
+    model_fit = param.Selector(
+        objects=BlsProcessingModels.to_param_dict(),
+        doc="Select which processing model to use",
+        instantiate=True
+    )
+    refit_model = param.Boolean(
+        default=True, label="Re-fit curve function", allow_refs=True,
+    )
+
+    
+    @pn.depends("refit_model", watch=True)
+    def _test_remodel_fit(self):
+        print(f"Model fit changed to {self.refit_model}")
+
+    @pn.depends("model_fit", watch=True)
+    def _test_model_fit(self):
+        print(f"Model fit changed to {self.model_fit}")
+        print(f"Function is {self.model_fit.func.__doc__}")
 
     # bls_file = param.ClassSelector(class_=bls.File, default=None, allow_refs=True)
     # bls_data = param.ClassSelector(
@@ -106,6 +152,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         # self.bls_file: bls.File = result_plot.param.bls_file
         # self.bls_data: bls.Data = result_plot.param.bls_data
         # self.bls_analysis: bls.Data.AnalysisResults = result_plot.param.bls_analysis
+        self._refit_model =  SwitchWithLabels(name="", value=True, label_true="Re-fit curve function", label_false="Re-use previous fit")
+        self.refit_model = self._refit_model.param.value
 
         # Test
         self.value: bls_param = bls_param(
@@ -118,6 +166,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         # so despite us returning a card from __panel__, the shown card didn't match
         # the card display (background color, shadows)
         self.css_classes.append("card")
+
 
     @catch_and_notify(prefix="<b>Compute fitted curves: </b>")
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
@@ -148,26 +197,10 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         fits = {}
         qts = self.results_at_point
         for peak in self.value.analysis.list_existing_peak_types():
-            try:
-                width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
-            except Exception as e:
-                print(f"Error getting width for peak {peak.name}: {e}")
-                width = None
-            try:
-                shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
-            except Exception as e:
-                print(f"Error getting shift for peak {peak.name}: {e}")
-                shift = None
-            try:
-                amplitude = qts[bls.Data.AnalysisResults.Quantity.Amplitude.name][peak.name].value
-            except Exception as e:
-                print(f"Error getting amplitude for peak {peak.name}: {e}")
-                amplitude = None
-            try:
-                offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
-            except Exception as e:
-                print(f"Error getting offset for peak {peak.name}: {e}")
-                offset = None
+            width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
+            shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
+            amplitude = qts[bls.Data.AnalysisResults.Quantity.Amplitude.name][peak.name].value
+            offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
 
             if width is None or shift is None or amplitude is None or offset is None:
                 print(
@@ -175,6 +208,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                     f"width={width}, shift={shift}, amplitude={amplitude}, offset={offset}"
                 )
                 continue
+
             match self.fit_type:
                 case self.Fits.Lorentzian:
                     y_values = real_lorentzian(x_range, shift, width, amplitude, offset)
@@ -236,8 +270,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         card.header = header
         card._header_layout.styles = {"width": "inherit"}
 
-
-    @param.depends("display_fit", "fit_type")
+    @param.depends("display_fit", "fit_type", "refit_model", "model_fit" )
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
         print(f"Computing fitted curves at ({time.time()})")
         fits = self._compute_fitted_curves(x_range, z, y, x)
@@ -250,6 +283,46 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             )
 
         return curves
+
+    def fit_and_plot_functions(self, x_range, PSD, frequency, PSD_units, frequency_units):
+        print("Re-fitting curves...")
+        # number of peaks
+        n_peaks = len(self.value.analysis.list_existing_peak_types())
+
+        # the base model function (e.g. Lorentzian, DHO, etc.)
+        base_func = self.model_fit.func  
+
+        print(f"Using model function: {self.model_fit.label}")
+        print(f"arguments: {base_func.__code__.co_varnames}, number of args: {base_func.__code__.co_argcount}")
+        print(f"Fitting {n_peaks} peaks")
+
+        # wrapper for n_peaks → just sum the contribution of each peak
+        def multi_peak_model(x, *params):
+            # assume each peak has the same number of parameters
+            n_params = base_func.__code__.co_argcount - 1 - 1  # minus the x argument minus the IR argument
+            y = np.zeros_like(x, dtype=float)
+            for i in range(n_peaks):
+                start = i * n_params
+                end = start + n_params
+                y += base_func(x, *params[start:end])
+            return y
+        
+        
+        # TODO: define sensible initial guess (p0) and bounds!
+        # here just as placeholders
+        p0 = [1.0] * (n_peaks * (base_func.__code__.co_argcount - 1))
+        bounds = (-np.inf, np.inf)
+
+        # perform fit
+        popt, pcov = scipy.optimize.curve_fit(multi_peak_model, frequency, PSD, p0=p0, bounds=bounds)
+
+        print(popt)
+        # compute fitted curve for plotting
+        y_fit = multi_peak_model(x_range, *popt)
+        return [hv.Curve((x_range, y_fit), label=f"Refitted function").opts(
+                    axiswise=True
+                )]
+        
 
     @pn.depends("dataset_zyx_coord", watch=True, on_init=False)
     @catch_and_notify(prefix="<b>Retrieve data: </b>")
@@ -311,7 +384,10 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         ):
             (PSD, frequency, PSD_units, frequency_units) = self.bls_spectrum_in_image
             x_range = np.arange(np.nanmin(frequency), np.nanmax(frequency), 0.1)
-            curves = self.fitted_curves(x_range, z, y, x)
+            if self.refit_model:
+                curves = self.fit_and_plot_functions(x_range, PSD, frequency, PSD_units, frequency_units)
+            else:
+                curves = self.fitted_curves(x_range, z, y, x)
         else:
             print("Warning: No BLS data available. Cannot plot spectrum.")
             # If no data is available, we create empty values
@@ -455,6 +531,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             self.param.dataset_zyx_coord, disabled=True
         )
 
+
+
         card =  pn.Card(    
             pn.pane.HoloViews(
                 self.plot_spectrum,
@@ -469,6 +547,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             coordinates,
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
             display_options,
+            pn.widgets.Select.from_param(self.param.model_fit, width=200),
+            self._refit_model,
             sizing_mode="stretch_height"
         )
 
