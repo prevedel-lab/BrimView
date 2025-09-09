@@ -8,6 +8,7 @@ import numpy as np  # Force import of numpy
 import tifffile  # Force import of tifffile
 import brimfile as bls  # Force import of brimfile
 import brimview_widgets
+import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
 __version__ = "0.1.0"
 

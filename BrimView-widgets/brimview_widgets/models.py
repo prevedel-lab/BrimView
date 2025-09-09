@@ -7,10 +7,10 @@ import numpy as np
 
 
 class BlsProcessingModels(Enum):
-    Lorentzian = ("Lorentzian", bls_processing.Models.lorentzian)
-    LorentzianElastic = ("Lorentzian Elastic", bls_processing.Models.lorentzian_elastic)
-    DHO = ("DHO", bls_processing.Models.DHO)
-    DHOElastic = ("DHO Elastic", bls_processing.Models.DHO_elastic)
+    Lorentzian = ("Lorentzian", bls_processing.Models().lorentzian)
+    LorentzianElastic = ("Lorentzian Elastic", bls_processing.Models().lorentzian_elastic)
+    DHO = ("DHO", bls_processing.Models().DHO)
+    DHOElastic = ("DHO Elastic", bls_processing.Models().DHO_elastic)
 
     @classmethod
     def to_param_dict(cls):
@@ -95,11 +95,11 @@ class BlsProcessingModels(Enum):
     def func_with_bls_args(self, x,  shift, width, amplitude, offset ):
         match self:
             case BlsProcessingModels.Lorentzian:
-                return bls_processing.Models.lorentzian(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
+                return bls_processing.Models().lorentzian(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
             case BlsProcessingModels.LorentzianElastic:
                 raise Exception("Impossible to call LorentzianElastic: missing 'ae' argument")
             case BlsProcessingModels.DHO:
-                return bls_processing.Models.DHO(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
+                return bls_processing.Models().DHO(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
             case BlsProcessingModels.DHOElastic:
                 raise Exception("Impossible to call DHOElastic: missing 'ae' argument")
             case _:

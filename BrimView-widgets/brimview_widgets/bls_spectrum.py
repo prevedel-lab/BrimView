@@ -89,6 +89,9 @@ class FitParam(pn.viewable.Viewer):
             disabled=True,
             groupby=["Peak"],
             hidden_columns=["Peak"],
+            configuration={
+                "groupStartOpen": False  # This makes all groups collapsed initially
+            },
         )
 
         self._title = pn.pane.Markdown(f"### {self.name}", margin=(0, 5, 0, 5))
@@ -108,7 +111,9 @@ class FitParam(pn.viewable.Viewer):
         rows = []
         for name, value in self.fitted_parameters.items():
             for param_name, param_value in value.items():
-                rows.append({"Peak": name, "Value": param_value, "Parameter": param_name})
+                rows.append(
+                    {"Peak": name, "Value": param_value, "Parameter": param_name}
+                )
         df = pd.DataFrame(rows, columns=["Parameter", "Value", "Peak"])
         self._table.value = df
 
@@ -162,15 +167,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     results_at_point = param.Dict(label="Result values at this point", precedence=-1)
 
     def __init__(self, result_plot: BlsDataVisualizer, **params):
-        self.quantity_tabulator = pn.widgets.Tabulator(
-            show_index=False,
-            disabled=True,
-            groupby=["Quantity"],
-            hidden_columns=["Quantity"],
-            configuration={
-                "groupStartOpen": False  # This makes all groups collapsed initially
-            },
-        )
         self.spinner = pn.indicators.LoadingSpinner(
             value=False, size=20, name="Idle", visible=True
         )
@@ -289,7 +285,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         card.header = header
         card._header_layout.styles = {"width": "inherit"}
 
-
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
         print(f"Computing fitted curves at ({time.time()})")
         fits = self._compute_fitted_curves(x_range, z, y, x)
@@ -321,7 +316,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 peak.name
             ].value
             offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
-            
+
             # Converting to HDF5_BLS_treat naming
             previous_fits[f"b{i}"] = offset
             previous_fits[f"a{i}"] = amplitude
@@ -344,7 +339,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         lower_bound = [-np.inf] * len(p0)
         upper_bound = [np.inf] * len(p0)
         bounds = (lower_bound, upper_bound)
-        
+
         # perform fit
         popt, pcov = scipy.optimize.curve_fit(
             multi_peak_model.function_flat,
@@ -365,8 +360,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         return [
             hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
-                axiswise=True,
-                line_dash='dotted'
+                axiswise=True, line_dash="dotted"
             )
         ]
 
@@ -393,29 +387,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         print(f"retrieve_point_rawdata at {now:.4f} seconds [done]")
         self.loading = False
 
-    @param.depends("results_at_point", watch=True)
-    def result_widget(self):
-
-        if self.results_at_point is None:
-            self.quantity_tabulator.value = None
-            return
-
-        rows = []
-        for quantity_name, quantities in self.results_at_point.items():
-            for name, metadata_item in quantities.items():
-                rows.append(
-                    {
-                        "Parameter": name,
-                        "Value": metadata_item.value,
-                        "Unit": metadata_item.units,
-                        "Quantity": quantity_name,
-                    }
-                )
-        df = pd.DataFrame(rows, columns=["Parameter", "Value", "Unit", "Quantity"])
-        self.quantity_tabulator.value = df
-
     # TODO watch=true for side effect ?
-    @pn.depends("results_at_point", "saved_fit.process", "saved_fit.model", "auto_refit.process", "auto_refit.model", "value", on_init=False)
+    @pn.depends(
+        "results_at_point",
+        "saved_fit.process",
+        "saved_fit.model",
+        "auto_refit.process",
+        "auto_refit.model",
+        "value",
+        on_init=False,
+    )
     @catch_and_notify(prefix="<b>Plot spectrum: </b>")
     def plot_spectrum(self):
         self.loading = True
@@ -569,7 +550,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         return tmp.name
 
     def __panel__(self):
-        
+
         card = pn.Card(
             pn.pane.HoloViews(
                 self.plot_spectrum,
@@ -577,7 +558,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 sizing_mode="stretch_width",
             ),
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
-            pn.FlexBox(self.saved_fit, self.auto_refit),            
+            pn.FlexBox(self.saved_fit, self.auto_refit),
             sizing_mode="stretch_height",
         )
 
