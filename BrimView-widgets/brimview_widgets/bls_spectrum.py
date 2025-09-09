@@ -140,16 +140,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         x = self.dataset_zyx_coord[2]
         return (z, y, x)
 
-    class Fits(Enum):
-        Lorentzian = "Lorentzian"
-        Gaussian = "Gaussian"
-        PseudoVoigt50 = "Pseudo Voigt (50%)"
-
-    display_fit = param.Boolean(
-        default=True, label="Compute and display fit over raw data"
-    )
-    fit_type = param.Selector(default=Fits.Lorentzian, objects=Fits)
-
     saved_fit = FitParam(name="Saved fit")
     auto_refit = FitParam(name="Auto re-fit")
 
@@ -160,14 +150,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     @pn.depends("auto_refit.process", watch=True)
     def _test_model_fit(self):
         print(self.auto_refit.process)
-
-    # bls_file = param.ClassSelector(class_=bls.File, default=None, allow_refs=True)
-    # bls_data = param.ClassSelector(
-    #     class_=bls.Data, default=None, allow_refs=True, precedence=-1
-    # )
-    # bls_analysis = param.ClassSelector(
-    #     class_=bls.Data.AnalysisResults, allow_refs=True, precedence=-1
-    # )
 
     value = param.ClassSelector(
         class_=bls_param,
@@ -199,16 +181,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         # Reference to the "main" plot_click
         self.dataset_zyx_coord = result_plot.param.dataset_zyx_click
-        # self.bls_file: bls.File = result_plot.param.bls_file
-        # self.bls_data: bls.Data = result_plot.param.bls_data
-        # self.bls_analysis: bls.Data.AnalysisResults = result_plot.param.bls_analysis
-        # self._auto_refit_switch = SwitchWithLabels(
-        #     name="",
-        #     value=True,
-        #     label_true="Re-fit curve function",
-        #     label_false="Re-use previous fit",
-        # )
-        # self.auto_refit.process = self._auto_refit_switch.param.value
 
         # Test
         self.value: bls_param = bls_param(
@@ -393,7 +365,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         return [
             hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
-                axiswise=True
+                axiswise=True,
+                line_dash='dotted'
             )
         ]
 
@@ -458,15 +431,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         ):
             (PSD, frequency, PSD_units, frequency_units) = self.bls_spectrum_in_image
             x_range = np.arange(np.nanmin(frequency), np.nanmax(frequency), 0.1)
+
+            if self.saved_fit.process:
+                saved_curves = self.fitted_curves(x_range, z, y, x)
+                curves.extend(saved_curves)
+
             if self.auto_refit.process:
                 refit_curves = self.auto_refit_and_plot(
                     x_range, PSD, frequency, PSD_units, frequency_units
                 )
                 curves.extend(refit_curves)
-
-            if self.saved_fit.process:
-                saved_curves = self.fitted_curves(x_range, z, y, x)
-                curves.extend(saved_curves)
         else:
             print("Warning: No BLS data available. Cannot plot spectrum.")
             # If no data is available, we create empty values
@@ -499,6 +473,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         return hv.Overlay(h).opts(
             axiswise=True,
             legend_position="bottom",
+            legend_cols=3,
             responsive=True,
             title=f"Spectrum at index (z={z}, y={y}, x={x})",
         )
@@ -594,37 +569,15 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         return tmp.name
 
     def __panel__(self):
-        display_options = pn.Card(
-            pn.FlexBox(
-                pn.widgets.Checkbox.from_param(self.param.display_fit),
-                pn.widgets.Select.from_param(self.param.fit_type, width=150),
-            ),
-            title="Curve options",
-            collapsed=True,
-            collapsible=True,
-            sizing_mode="stretch_height",
-            margin=5,
-        )
-        coordinates = pn.widgets.LiteralInput.from_param(
-            self.param.dataset_zyx_coord, disabled=True
-        )
-
+        
         card = pn.Card(
             pn.pane.HoloViews(
                 self.plot_spectrum,
                 height=300,  # Not the greatest solution
                 sizing_mode="stretch_width",
             ),
-            # pn.Column(
-            #     pn.layout.Divider(),
-            #     self.quantity_tabulator,
-            #     sizing_mode="stretch_width",
-            # ),
-            #coordinates,
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
-            pn.FlexBox(self.saved_fit, self.auto_refit),
-            display_options,
-            
+            pn.FlexBox(self.saved_fit, self.auto_refit),            
             sizing_mode="stretch_height",
         )
 
