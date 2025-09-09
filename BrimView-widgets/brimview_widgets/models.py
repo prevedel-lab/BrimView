@@ -91,6 +91,20 @@ class BlsProcessingModels(Enum):
                     buffer.append(stripped)
 
         return params
+    
+    def func_with_bls_args(self, x,  shift, width, amplitude, offset ):
+        match self:
+            case BlsProcessingModels.Lorentzian:
+                return bls_processing.Models.lorentzian(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
+            case BlsProcessingModels.LorentzianElastic:
+                raise Exception("Impossible to call LorentzianElastic: missing 'ae' argument")
+            case BlsProcessingModels.DHO:
+                return bls_processing.Models.DHO(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
+            case BlsProcessingModels.DHOElastic:
+                raise Exception("Impossible to call DHOElastic: missing 'ae' argument")
+            case _:
+                raise ValueError(f"Unknown model: {self}")
+
 
 
 class MultiPeakModel(param.Parameterized):
@@ -105,9 +119,9 @@ class MultiPeakModel(param.Parameterized):
     _param_names = param.List()
 
     def __init__(self, base_model: BlsProcessingModels, n_peaks: int, **params):
+        super().__init__(**params)
         self.base_model = base_model
         self.n_peaks = n_peaks
-        super().__init__(**params)
         self._multipeak_function, self._param_names = self._create_multipeak_function()
 
     @property
@@ -168,6 +182,25 @@ class MultiPeakModel(param.Parameterized):
             for name in self._param_names:
                 out[f"{name}{p}"] = args[i]
                 i += 1
+        return out
+    
+    def unflatten_args_grouped(self, args):
+        """
+        Convert flat args (list of floats) into a dict grouped by peak index.
+        Example:
+            [b0, a0, nu00, gamma0, b1, a1, nu01, gamma1]
+        becomes:
+            {"0": {"b": ..., "a": ..., "nu0": ..., "gamma": ...},
+             "1": {"b": ..., "a": ..., "nu0": ..., "gamma": ...}}
+        """
+        out = {}
+        i = 0
+        for p in range(self.n_peaks):
+            tmp_dict = {}
+            for name in self._param_names:
+                tmp_dict[name] = args[i]
+                i += 1
+            out[str(p)] = tmp_dict
         return out
 
     def function(self, x, **kwargs):

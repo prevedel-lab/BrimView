@@ -40,12 +40,82 @@ def _convert_numpy(obj):
         return obj
 
 
-def models_to_param():
-    models = bls_processing.Models().models
-    model_dict = {}
-    for key, model in models.items():
-        model_dict[key] = model
-    return model_dict
+class FitParam(pn.viewable.Viewer):
+    """
+    Storing as a sub-parameterized to avoid polluting the main param space
+    """
+
+    # TODO: move this as it's own widget ?
+
+    process = param.Boolean(
+        default=True,
+        label="Auto re-fit when clicking on a new pixel",
+        doc="If enabled, the fit will be recomputed when clicking on a new pixel. If disabled, the previous fit will be used.",
+        allow_refs=True,
+    )
+
+    model = param.Selector(
+        objects=BlsProcessingModels.to_param_dict(),
+        doc="Select which processing model to use",
+        instantiate=True,
+        allow_refs=True,
+    )
+
+    fitted_parameters = param.Dict(
+        default=None,
+        doc="""Parameters from the fit. This is expected to be in the form:
+        {
+            "peak_name": {"param1": value1, "param2": value2, ...}, 
+            "peak_name2": {...},
+            ...
+        }""",
+    )
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        # Creating some widget
+        self._process_switch = SwitchWithLabels(
+            name="",
+            value=True,
+            label_true="Enable",
+            label_false="Disable",
+        )
+        self.process = self._process_switch.param.value
+
+        self._model_dropdown = pn.widgets.Select.from_param(self.param.model, width=200)
+
+        self._table = pn.widgets.Tabulator(
+            show_index=False,
+            disabled=True,
+            groupby=["Peak"],
+            hidden_columns=["Peak"],
+        )
+
+        self._title = pn.pane.Markdown(f"### {self.name}", margin=(0, 5, 0, 5))
+
+        # For type annotation
+        self.model: BlsProcessingModels
+        self.fitted_parameters: dict[str, float] | None
+        self.process: bool
+
+    @pn.depends("fitted_parameters", watch=True)
+    def _update_table(self):
+
+        if self.fitted_parameters is None:
+            self._table.value = None
+            return
+
+        rows = []
+        for name, value in self.fitted_parameters.items():
+            for param_name, param_value in value.items():
+                rows.append({"Peak": name, "Value": param_value, "Parameter": param_name})
+        df = pd.DataFrame(rows, columns=["Parameter", "Value", "Peak"])
+        self._table.value = df
+
+    def __panel__(self):
+        return pn.Column(
+            self._title, self._process_switch, self._model_dropdown, self._table
+        )
 
 
 class BlsSpectrumVisualizer(WidgetBase, PyComponent):
@@ -80,27 +150,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     )
     fit_type = param.Selector(default=Fits.Lorentzian, objects=Fits)
 
-    model_fit = param.Selector(
-        objects=BlsProcessingModels.to_param_dict(),
-        doc="Select which processing model to use",
-        instantiate=True,
-    )
-    refit_model = param.Boolean(
-        default=True,
-        label="Re-fit curve function",
-        allow_refs=True,
-    )
+    saved_fit = FitParam(name="Saved fit")
+    auto_refit = FitParam(name="Auto re-fit")
 
-    @pn.depends("refit_model", watch=True)
+    @pn.depends("auto_refit.model", watch=True)
     def _test_remodel_fit(self):
-        print(f"Model fit changed to {self.refit_model}")
+        print(f"Model fit changed to {self.auto_refit.model}")
 
-    @pn.depends("model_fit", watch=True)
+    @pn.depends("auto_refit.process", watch=True)
     def _test_model_fit(self):
-        print(self.model_fit.arguments)
-        print(self.model_fit.short_docstring)
-        print(self.model_fit.full_docstring)
-        print(self.model_fit.arguments_documentation)
+        print(self.auto_refit.process)
 
     # bls_file = param.ClassSelector(class_=bls.File, default=None, allow_refs=True)
     # bls_data = param.ClassSelector(
@@ -143,13 +202,13 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         # self.bls_file: bls.File = result_plot.param.bls_file
         # self.bls_data: bls.Data = result_plot.param.bls_data
         # self.bls_analysis: bls.Data.AnalysisResults = result_plot.param.bls_analysis
-        self._refit_model = SwitchWithLabels(
-            name="",
-            value=True,
-            label_true="Re-fit curve function",
-            label_false="Re-use previous fit",
-        )
-        self.refit_model = self._refit_model.param.value
+        # self._auto_refit_switch = SwitchWithLabels(
+        #     name="",
+        #     value=True,
+        #     label_true="Re-fit curve function",
+        #     label_false="Re-use previous fit",
+        # )
+        # self.auto_refit.process = self._auto_refit_switch.param.value
 
         # Test
         self.value: bls_param = bls_param(
@@ -168,32 +227,12 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
     @catch_and_notify(prefix="<b>Compute fitted curves: </b>")
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
-        if not self.display_fit:
+        if self.saved_fit.process is False:
             return []
-
-        def lorentzian(x, x0, w):
-            return 1 / (1 + ((x - x0) / (w / 2)) ** 2)
-
-        def real_lorentzian(x, shift, width, amplitude, offset):
-            return amplitude * lorentzian(x, shift, width) + offset
-
-        def real_gaussian(x, shift, width, amplitude, offset):
-            return (
-                amplitude * np.exp(-4 * np.log(2) * ((x - shift) / width) ** 2) + offset
-            )
-
-        def pseudo_voigt(x, shift, width, amplitude, offset, eta):
-            """
-            eta: Mixing parameter, 0 <= eta <= 1
-                eta = 1: pure Lorentzian
-                eta = 0: pure Gaussian
-            """
-            g = np.exp(-4 * np.log(2) * ((x - shift) / width) ** 2)
-            l = 1 / (1 + ((x - shift) / (width / 2)) ** 2)
-            return amplitude * (eta * l + (1 - eta) * g) + offset
 
         fits = {}
         qts = self.results_at_point
+        fit_params = {}
         for peak in self.value.analysis.list_existing_peak_types():
             width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
             shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
@@ -202,23 +241,31 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             ].value
             offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
 
+            fit_params[peak.name] = {
+                "width": width,
+                "shift": shift,
+                "amplitude": amplitude,
+                "offset": offset,
+            }
+
             if width is None or shift is None or amplitude is None or offset is None:
-                print(
+                pn.state.notifications.warning(
                     f"Skipping peak {peak.name} due to missing parameters: "
                     f"width={width}, shift={shift}, amplitude={amplitude}, offset={offset}"
                 )
                 continue
+            try:
+                y_values = self.saved_fit.model.func_with_bls_args(
+                    x_range, shift, width, amplitude, offset
+                )
+                fits[peak.name] = y_values
+            except Exception as e:
+                pn.state.notifications.error(
+                    f"Error computing fit for peak {peak.name}: {e}"
+                )
+                continue
 
-            match self.fit_type:
-                case self.Fits.Lorentzian:
-                    y_values = real_lorentzian(x_range, shift, width, amplitude, offset)
-                case self.Fits.Gaussian:
-                    y_values = real_gaussian(x_range, shift, width, amplitude, offset)
-                case self.Fits.PseudoVoigt50:
-                    y_values = pseudo_voigt(
-                        x_range, shift, width, amplitude, offset, 0.5
-                    )
-            fits[peak.name] = y_values
+        self.saved_fit.fitted_parameters = fit_params
         return fits
 
     @pn.depends("loading", watch=True)
@@ -270,7 +317,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         card.header = header
         card._header_layout.styles = {"width": "inherit"}
 
-    @param.depends("display_fit", "fit_type", "refit_model", "model_fit")
+
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
         print(f"Computing fitted curves at ({time.time()})")
         fits = self._compute_fitted_curves(x_range, z, y, x)
@@ -285,9 +332,10 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         return curves
 
     # TODO: rename to something better
-    def fit_and_plot_functions(
-        self, x_range, PSD, frequency, PSD_units, frequency_units
-    ):
+    def auto_refit_and_plot(self, x_range, PSD, frequency, PSD_units, frequency_units):
+        if self.auto_refit.process is False:
+            return []
+
         print("Re-fitting curves...")
         # number of peaks
         n_peaks = len(self.value.analysis.list_existing_peak_types())
@@ -301,6 +349,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 peak.name
             ].value
             offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
+            
             # Converting to HDF5_BLS_treat naming
             previous_fits[f"b{i}"] = offset
             previous_fits[f"a{i}"] = amplitude
@@ -311,27 +360,41 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         print(f"Previous fits: {previous_fits}")
         # the base model function (e.g. Lorentzian, DHO, etc.)
 
-        multi_peak_model = MultiPeakModel(base_model=self.model_fit, n_peaks=n_peaks)
+        multi_peak_model = MultiPeakModel(
+            base_model=self.auto_refit.model, n_peaks=n_peaks
+        )
 
         # TODO: define sensible initial guess (p0) and bounds!
         # here just as placeholders
         p0 = multi_peak_model._flatten_kwargs(previous_fits)
-        # bounds = (-np.inf, np.inf)
+
+        # You could try to make something smart here to block the multiple offsets
+        lower_bound = [-np.inf] * len(p0)
+        upper_bound = [np.inf] * len(p0)
+        bounds = (lower_bound, upper_bound)
+        
         # perform fit
         popt, pcov = scipy.optimize.curve_fit(
             multi_peak_model.function_flat,
             frequency,
             PSD,
             p0=p0,
+            bounds=bounds,
         )
         y_fit = multi_peak_model.function_flat(x_range, *popt)
 
         print("Fitted args:", popt)
-        print("As kwargs:", multi_peak_model._unflatten_args(popt))
+        # print("As kwargs:", multi_peak_model._unflatten_args(popt))
         # compute fitted curve for plotting
 
+        self.auto_refit.fitted_parameters = multi_peak_model.unflatten_args_grouped(
+            popt
+        )
+
         return [
-            hv.Curve((x_range, y_fit), label=f"Refitted function").opts(axiswise=True)
+            hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
+                axiswise=True
+            )
         ]
 
     @pn.depends("dataset_zyx_coord", watch=True, on_init=False)
@@ -379,7 +442,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         self.quantity_tabulator.value = df
 
     # TODO watch=true for side effect ?
-    @pn.depends("results_at_point", "fitted_curves", "value", on_init=False)
+    @pn.depends("results_at_point", "saved_fit.process", "saved_fit.model", "auto_refit.process", "auto_refit.model", "value", on_init=False)
     @catch_and_notify(prefix="<b>Plot spectrum: </b>")
     def plot_spectrum(self):
         self.loading = True
@@ -387,6 +450,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         print(f"plot_spectrum at {now:.4f} seconds")
         (z, y, x) = self.get_coordinates()
         # Generate a fake spectrum for demonstration purposes
+        curves = []
         if (
             self.value is not None
             and self.value.data is not None
@@ -394,17 +458,19 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         ):
             (PSD, frequency, PSD_units, frequency_units) = self.bls_spectrum_in_image
             x_range = np.arange(np.nanmin(frequency), np.nanmax(frequency), 0.1)
-            if self.refit_model:
-                curves = self.fit_and_plot_functions(
+            if self.auto_refit.process:
+                refit_curves = self.auto_refit_and_plot(
                     x_range, PSD, frequency, PSD_units, frequency_units
                 )
-            else:
-                curves = self.fitted_curves(x_range, z, y, x)
+                curves.extend(refit_curves)
+
+            if self.saved_fit.process:
+                saved_curves = self.fitted_curves(x_range, z, y, x)
+                curves.extend(saved_curves)
         else:
             print("Warning: No BLS data available. Cannot plot spectrum.")
             # If no data is available, we create empty values
             (PSD, frequency, PSD_units, frequency_units) = ([], [], "", "")
-            curves = []
         print(f"Retrieving spectrum took {time.time() - now:.4f} seconds")
         # Get and plot raw spectrum
         h = [
@@ -549,16 +615,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 height=300,  # Not the greatest solution
                 sizing_mode="stretch_width",
             ),
-            pn.Column(
-                pn.layout.Divider(),
-                self.quantity_tabulator,
-                sizing_mode="stretch_width",
-            ),
-            coordinates,
+            # pn.Column(
+            #     pn.layout.Divider(),
+            #     self.quantity_tabulator,
+            #     sizing_mode="stretch_width",
+            # ),
+            #coordinates,
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
+            pn.FlexBox(self.saved_fit, self.auto_refit),
             display_options,
-            pn.widgets.Select.from_param(self.param.model_fit, width=200),
-            self._refit_model,
+            
             sizing_mode="stretch_height",
         )
 
