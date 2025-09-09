@@ -71,6 +71,36 @@ class FitParam(pn.viewable.Viewer):
         }""",
     )
 
+    lower_bounds = param.Dict(
+        default=None,
+        doc="""Lower_bounds of the fit. This is expected to be in the form:
+        {
+            "peak_name": {"param1": value1, "param2": value2, ...}, 
+            "peak_name2": {...},
+            ...
+        }""",
+    )
+
+    starting_value = param.Dict(
+        default=None,
+        doc="""Starting value of the fit. This is expected to be in the form:
+        {
+            "peak_name": {"param1": value1, "param2": value2, ...}, 
+            "peak_name2": {...},
+            ...
+        }""",
+    )
+
+    upper_bound = param.Dict(
+        default=None,
+        doc="""Upper bound of the fit. This is expected to be in the form:
+        {
+            "peak_name": {"param1": value1, "param2": value2, ...}, 
+            "peak_name2": {...},
+            ...
+        }""",
+    )
+
     def __init__(self, **params):
         super().__init__(**params)
         # Creating some widget
@@ -94,12 +124,19 @@ class FitParam(pn.viewable.Viewer):
             },
         )
 
-        self._title = pn.pane.Markdown(f"### {self.name}", margin=(0, 5, 0, 5))
-
         # For type annotation
         self.model: BlsProcessingModels
         self.fitted_parameters: dict[str, float] | None
         self.process: bool
+
+    def _update_model_widget(self):
+        print(self.param.model.objects)
+        if len(self.param.model.objects) == 1:
+            self._model_dropdown.disabled = True
+            self._model_dropdown.description = "Assumed to be this model"
+        else:
+            self._model_dropdown.disabled = False
+            self._model_dropdown.description = self.param.model.doc
 
     @pn.depends("fitted_parameters", watch=True)
     def _update_table(self):
@@ -118,8 +155,14 @@ class FitParam(pn.viewable.Viewer):
         self._table.value = df
 
     def __panel__(self):
-        return pn.Column(
-            self._title, self._process_switch, self._model_dropdown, self._table
+        return pn.Card(
+            self._process_switch,
+            self._model_dropdown,
+            self._table,
+
+            title=self.name,
+            collapsible=False,
+            margin=5,
         )
 
 
@@ -184,6 +227,11 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             data=result_plot.param.bls_data,
             analysis=result_plot.param.bls_analysis,
         )
+
+        self.saved_fit.param.model.objects = {
+            "Lorentzian": BlsProcessingModels.Lorentzian
+        }
+        self.saved_fit._update_model_widget()
 
         # Because we're not a pn.Viewer anymore, by default we lost the "card" display
         # so despite us returning a card from __panel__, the shown card didn't match
