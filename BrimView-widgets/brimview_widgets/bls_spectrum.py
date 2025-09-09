@@ -487,11 +487,13 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             ).opts(
                 color="black",
                 axiswise=True,
+                marker='+',
+                size=10
             )
-            * hv.Curve((frequency, PSD), label=f"interpolation").opts(
-                color="black",
-                axiswise=True,
-            )
+            # * hv.Curve((frequency, PSD), label=f"interpolation").opts(
+            #     color="black",
+            #     axiswise=True,
+            # )
         ]
 
         h.extend(curves)
