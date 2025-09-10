@@ -460,63 +460,68 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             lower_bounds = [-np.inf] * len(p0)
             upper_bounds = [np.inf] * len(p0)
 
-        # perform fit
-        print(
-            "[TRACE] scipy.curve_fit called with: \n"
-            + f"p0 = {p0} \n"
-            + f"lower bounds = {lower_bounds} \n"
-            + f"upper bounds = {upper_bounds}"
-        )
-        popt, pcov = scipy.optimize.curve_fit(
-            multi_peak_model.function_flat,
-            frequency,
-            PSD,
-            p0=p0,
-            bounds=(lower_bounds, upper_bounds),
-        )
-        y_fit = multi_peak_model.function_flat(x_range, *popt)
 
-        arg_description = self.auto_refit.model.arguments_documentation
+        try: 
+            # perform fit
+            print(
+                "[TRACE] scipy.curve_fit called with: \n"
+                + f"p0 = {p0} \n"
+                + f"lower bounds = {lower_bounds} \n"
+                + f"upper bounds = {upper_bounds}"
+            )
 
-        print("Fitted args:", popt)
+            popt, pcov = scipy.optimize.curve_fit(
+                multi_peak_model.function_flat,
+                frequency,
+                PSD,
+                p0=p0,
+                bounds=(lower_bounds, upper_bounds),
+            )
+            y_fit = multi_peak_model.function_flat(x_range, *popt)
 
-        # Saving the different informations from the curve_fit as dict
-        # we use param.update to update all the variable *at the same time*,
-        # and to only trigger the update event once
-
-        fitted_parameters = multi_peak_model.unflatten_args_grouped(popt)
-        upper_bounds = multi_peak_model.unflatten_args_grouped(upper_bounds)
-        starting_values = multi_peak_model.unflatten_args_grouped(p0)
-        lower_bounds = multi_peak_model.unflatten_args_grouped(lower_bounds)
-        rows = []
-        for name, value in fitted_parameters.items():
-            for param_name, param_value in value.items():
-                rows.append(
-                    {
-                        "Peak": name,
-                        "Parameter": param_name,
-                        "Value": param_value,
-                        "Upper bound": upper_bounds[name][param_name],
-                        "Starting value": starting_values[name][param_name],
-                        "Lower bound": lower_bounds[name][param_name],
-                        "Description": arg_description.get(
-                            param_name, "Fitting variable"
-                        ),
-                    }
-                )
-
-        # To avoid recursion :
-        # - we want to change auto_refit.fitted_parameters (to update the UI)
-        # - we don't want to retrigger the autorefit function
-        self._set_early_replot_exit(True)
-        self.auto_refit.fitted_parameters = pd.DataFrame(rows)
-        self._set_early_replot_exit(False)
-
-        return [
+            return [
             hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
                 axiswise=True, line_dash="dotted", color="green", line_width=4
             )
         ]
+        except Exception as e:
+            #TODO: Make a cleaner way to put some values in storage
+            popt = p0
+            raise e
+        finally: #Whether the fit fails or not, we want to store the arguments
+            arg_description = self.auto_refit.model.arguments_documentation
+
+            # Saving the different informations from the curve_fit as dict
+            # we use param.update to update all the variable *at the same time*,
+            # and to only trigger the update event once
+
+            fitted_parameters = multi_peak_model.unflatten_args_grouped(popt)
+            upper_bounds = multi_peak_model.unflatten_args_grouped(upper_bounds)
+            starting_values = multi_peak_model.unflatten_args_grouped(p0)
+            lower_bounds = multi_peak_model.unflatten_args_grouped(lower_bounds)
+            rows = []
+            for name, value in fitted_parameters.items():
+                for param_name, param_value in value.items():
+                    rows.append(
+                        {
+                            "Peak": name,
+                            "Parameter": param_name,
+                            "Value": param_value,
+                            "Upper bound": upper_bounds[name][param_name],
+                            "Starting value": starting_values[name][param_name],
+                            "Lower bound": lower_bounds[name][param_name],
+                            "Description": arg_description.get(
+                                param_name, "Fitting variable"
+                            ),
+                        }
+                    )
+
+            # To avoid recursion :
+            self._set_early_replot_exit(True)
+            self.auto_refit.fitted_parameters = pd.DataFrame(rows)
+            self._set_early_replot_exit(False)
+
+        
 
     @pn.depends("dataset_zyx_coord", watch=True, on_init=False)
     @catch_and_notify(prefix="<b>Retrieve data: </b>")
@@ -532,7 +537,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             try:
                 used_model = self.value.analysis.fit_model
                 used_model = BlsProcessingModels.from_brimfile_models(used_model)
-                tooltip_text = "The peak model was retrieve from the file's metadata"
+                tooltip_text = "The peak model was retrieved from the file's metadata"
             except Exception as e:
                 pn.state.notifications.warning(f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})")
                 used_model = BlsProcessingModels.Lorentzian
