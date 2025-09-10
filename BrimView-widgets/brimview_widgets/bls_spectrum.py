@@ -87,6 +87,7 @@ class FitParam(pn.viewable.Viewer):
         self._model_dropdown = pn.widgets.Select.from_param(self.param.model, width=200)
 
         self._table = pn.widgets.Tabulator(
+            pd.DataFrame({}),
             show_index=False,
             disabled=False,
             groupby=["Peak"],
@@ -99,6 +100,9 @@ class FitParam(pn.viewable.Viewer):
                 "Parameter": None,
                 "Value": None,
                 "Description": None,
+                "Lower bound": {"type": "number"}, 
+                "Starting value": {"type": "number"}, 
+                "Upper bound": {"type": "number"}, 
             },
             groups={
                 "Fit constraints": ["Lower bound", "Starting value", "Upper bound"]
