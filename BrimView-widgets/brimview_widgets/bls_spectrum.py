@@ -141,7 +141,7 @@ class FitParam(pn.viewable.Viewer):
         print(self.param.model.objects)
         if len(self.param.model.objects) == 1:
             self._model_dropdown.disabled = True
-            self._model_dropdown.description = "Assumed to be this model"
+            self._model_dropdown.description = self.param.model.doc
         else:
             self._model_dropdown.disabled = False
             self._model_dropdown.description = self.param.model.doc
@@ -152,6 +152,13 @@ class FitParam(pn.viewable.Viewer):
 
     def _reset_fitted_parameters(self, _event):
         self.fitted_parameters = None
+
+    def force_single_model(self, model: BlsProcessingModels, tooltip_text: None | str = None):
+        self.param.model.objects = {model.label: model}
+        self.model = model
+        if tooltip_text is not None:
+            self.param.model.doc = tooltip_text
+        self._update_model_widget()
 
     @pn.depends(
         "fitted_parameters",
@@ -236,10 +243,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         )
 
         # Configure saved_fit widget
-        self.saved_fit.param.model.objects = {
-            "Lorentzian": BlsProcessingModels.Lorentzian
-        }
-        self.saved_fit._update_model_widget()
+        self.saved_fit.force_single_model(BlsProcessingModels.Lorentzian, "Using default peak model")
 
         # Configure autore_fit widget
         self.auto_refit._reset_button.visible = True
@@ -537,6 +541,15 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                     self.value.analysis, (z, y, x)
                 )
             )
+            try:
+                used_model = self.value.analysis.fit_model
+                used_model = BlsProcessingModels.from_brimfile_models(used_model)
+                tooltip_text = "The peak model was retrieve from the file's metadata"
+            except Exception as e:
+                pn.state.notifications.warning(f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})")
+                used_model = BlsProcessingModels.Lorentzian
+                tooltip_text = f"Impossible to use file's metadata to determine the peak model. Using a default peak model instead. \n(Reported error: *{e}*)"
+            self.saved_fit.force_single_model(used_model, tooltip_text)
         else:
             self.bls_spectrum_in_image = None
 

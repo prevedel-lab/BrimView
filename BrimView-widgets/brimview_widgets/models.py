@@ -5,10 +5,15 @@ import HDF5_BLS_treat.treat as bls_processing
 import param
 import numpy as np
 
+from brimfile.data import Data as bls_data
+
 
 class BlsProcessingModels(Enum):
     Lorentzian = ("Lorentzian", bls_processing.Models().lorentzian)
-    LorentzianElastic = ("Lorentzian Elastic", bls_processing.Models().lorentzian_elastic)
+    LorentzianElastic = (
+        "Lorentzian Elastic",
+        bls_processing.Models().lorentzian_elastic,
+    )
     DHO = ("DHO", bls_processing.Models().DHO)
     DHOElastic = ("DHO Elastic", bls_processing.Models().DHO_elastic)
 
@@ -91,20 +96,42 @@ class BlsProcessingModels(Enum):
                     buffer.append(stripped)
 
         return params
-    
-    def func_with_bls_args(self, x,  shift, width, amplitude, offset ):
+
+    def func_with_bls_args(self, x, shift, width, amplitude, offset):
         match self:
             case BlsProcessingModels.Lorentzian:
-                return bls_processing.Models().lorentzian(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
+                return bls_processing.Models().lorentzian(
+                    nu=x, b=offset, a=amplitude, nu0=shift, gamma=width
+                )
             case BlsProcessingModels.LorentzianElastic:
-                raise Exception("Impossible to call LorentzianElastic: missing 'ae' argument")
+                raise Exception(
+                    "Impossible to call LorentzianElastic: missing 'ae' argument"
+                )
             case BlsProcessingModels.DHO:
-                return bls_processing.Models().DHO(nu=x, b = offset, a = amplitude, nu0=shift, gamma = width)
+                return bls_processing.Models().DHO(
+                    nu=x, b=offset, a=amplitude, nu0=shift, gamma=width
+                )
             case BlsProcessingModels.DHOElastic:
                 raise Exception("Impossible to call DHOElastic: missing 'ae' argument")
             case _:
                 raise ValueError(f"Unknown model: {self}")
 
+    @staticmethod
+    def from_brimfile_models(model: bls_data.AnalysisResults.FitModel):
+        brimfile_models = bls_data.AnalysisResults.FitModel
+        match model:
+            case brimfile_models.Undefined:
+                raise Exception("Undefined function - can't continue")
+            case brimfile_models.Lorentzian:
+                return BlsProcessingModels.Lorentzian
+            case brimfile_models.DHO:
+                return BlsProcessingModels.DHO
+            case brimfile_models.Gaussian:
+                raise Exception("Gaussian function - not yet implemented")
+            case brimfile_models.Voigt:
+                raise Exception("Voigt function - not yet implemented")
+            case brimfile_models.Custom:
+                raise Exception("Custom function - not yet implemented")
 
 
 class MultiPeakModel(param.Parameterized):
@@ -136,7 +163,7 @@ class MultiPeakModel(param.Parameterized):
         For gaussian(nu, b, a, nu0, w) and n_peaks=2, it should return 8 (= 2 * len([b, a, nu0, w]))
         """
         return len(self._param_names) * self.n_peaks
-    
+
     def _create_multipeak_function(self):
         """
         Creates a function that sums multiple instances of the base model.
@@ -192,7 +219,7 @@ class MultiPeakModel(param.Parameterized):
                 out[f"{name}{p}"] = args[i]
                 i += 1
         return out
-    
+
     def unflatten_args_grouped(self, args):
         """
         Convert flat args (list of floats) into a dict grouped by peak index.
