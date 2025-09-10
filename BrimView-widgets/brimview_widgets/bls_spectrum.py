@@ -92,7 +92,7 @@ class FitParam(pn.viewable.Viewer):
             groupby=["Peak"],
             hidden_columns=["Peak", "Description"],
             configuration={
-                "groupStartOpen": False  # This makes all groups collapsed initially
+                "groupStartOpen": True  # This makes all groups collapsed initially
             },
             editors={
                 # Making sure these 2 columns are not editable
@@ -120,14 +120,16 @@ class FitParam(pn.viewable.Viewer):
                     border-bottom: 1px dotted #333;  /* dotted underline */
                     cursor: help;                    /* cursor hint */
                 }        
-                """]
+                """
+            ],
         )
 
         self._reset_button = pn.widgets.Button(
             name="Reset constraints",
             button_type="primary",
-            visible=False,
+            visible=False
         )
+        self._reset_button.align = ('start', 'end')
         self._reset_button.on_click(self._reset_fitted_parameters)
 
         # For type annotation
@@ -163,8 +165,8 @@ class FitParam(pn.viewable.Viewer):
 
     def __panel__(self):
         return pn.Card(
-            self._process_switch,
-            pn.FlexBox(self._model_dropdown, self._reset_button),
+            self._process_switch, 
+            pn.Row(self._model_dropdown, self._reset_button),
             self._table,
             title=self.name,
             margin=5,
@@ -269,6 +271,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         fits = {}
         qts = self.results_at_point
         fit_params = {}
+        df_rows = []
+
         for peak in self.value.analysis.list_existing_peak_types():
             width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
             shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
@@ -277,12 +281,34 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             ].value
             offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
 
-            fit_params[peak.name] = {
-                "width": width,
-                "shift": shift,
-                "amplitude": amplitude,
-                "offset": offset,
-            }
+            df_rows.append(
+                {
+                    "Peak": peak.name,
+                    "Parameter": "width",
+                    "Value": width,
+                }
+            )
+            df_rows.append(
+                {
+                    "Peak": peak.name,
+                    "Parameter": "offset",
+                    "Value": offset,
+                }
+            )
+            df_rows.append(
+                {
+                    "Peak": peak.name,
+                    "Parameter": "amplitude",
+                    "Value": amplitude,
+                }
+            )
+            df_rows.append(
+                {
+                    "Peak": peak.name,
+                    "Parameter": "offset",
+                    "Value": offset,
+                }
+            )
 
             if width is None or shift is None or amplitude is None or offset is None:
                 pn.state.notifications.warning(
@@ -301,7 +327,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 )
                 continue
 
-        # self.saved_fit.fitted_parameters = fit_params
+        self.saved_fit.fitted_parameters = pd.DataFrame(df_rows)
         return fits
 
     @pn.depends("loading", watch=True)
@@ -477,7 +503,9 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                         "Upper bound": upper_bounds[name][param_name],
                         "Starting value": starting_values[name][param_name],
                         "Lower bound": lower_bounds[name][param_name],
-                        "Description": arg_description.get(param_name, "Fitting variable"),
+                        "Description": arg_description.get(
+                            param_name, "Fitting variable"
+                        ),
                     }
                 )
 
@@ -490,7 +518,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         return [
             hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
-                axiswise=True, line_dash="dotted"
+                axiswise=True, line_dash="dotted", color="green", line_width=4
             )
         ]
 
@@ -695,7 +723,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 sizing_mode="stretch_width",
             ),
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
-            pn.FlexBox(self.saved_fit, self.auto_refit),
+            pn.FlexBox(self.auto_refit,  self.saved_fit),
             sizing_mode="stretch_height",
         )
 
