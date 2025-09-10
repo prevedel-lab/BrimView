@@ -105,7 +105,7 @@ class FitParam(pn.viewable.Viewer):
                 "Upper bound": {"type": "number"}, 
             },
             groups={
-                "Fit constraints": ["Lower bound", "Starting value", "Upper bound"]
+                "Fit constraints (🖉)": ["Lower bound", "Starting value", "Upper bound"]
             },
             formatters={
                 "Parameter": HTMLTemplateFormatter(
