@@ -10,7 +10,7 @@ import brimfile as bls  # Force import of brimfile
 import brimview_widgets
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
