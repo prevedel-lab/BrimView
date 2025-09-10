@@ -247,7 +247,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         # Configure autore_fit widget
         self.auto_refit._reset_button.visible = True
-        self._replot_spectrum_after_autorefit(True)
+        self._set_early_replot_exit(False)
 
         # Because we're not a pn.Viewer anymore, by default we lost the "card" display
         # so despite us returning a card from __panel__, the shown card didn't match
@@ -257,15 +257,9 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         # Annoation help
         self.model_fit: BlsProcessingModels
 
-    def _replot_spectrum_after_autorefit(self, enable):
-        if enable:
-            self._replot_watcher = self.auto_refit._table.param.watch(
-                lambda event: self.plot_spectrum(), "value"
-            )
-        else:
-            if self._replot_watcher is not None:
-                self.auto_refit._table.param.unwatch(self._replot_watcher)
-            self._replot_watcher = None
+
+    def _set_early_replot_exit(self, enable):
+        self._early_replot_exit = enable
 
     @catch_and_notify(prefix="<b>Compute fitted curves: </b>")
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
@@ -427,7 +421,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             previous_fits[f"gamma{i}"] = width
             i += 1
 
-        print(f"Previous fits: {previous_fits}")
+        print(f"[TRACE] saved fit: {previous_fits}")
 
         # If possible, we use existing/previous information for the fit
         # This allows for GUI interaction
@@ -437,7 +431,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         stored_lower_bounds = {}
         if self.auto_refit.fitted_parameters is not None:
             rows: pd.DataFrame = self.auto_refit.fitted_parameters
-            print(f"rows: {rows}")
             # Converting from pd.DataFrame into the dict of parameters
             for (
                 index,
@@ -445,7 +438,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             ) in (
                 rows.iterrows()
             ):  # TODO: supposedly very slow, probably best to change this (make the model accept dataframes ? )
-                print(row)
                 peak = row["Peak"]
                 param = row["Parameter"]
 
@@ -516,9 +508,9 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         # To avoid recursion :
         # - we want to change auto_refit.fitted_parameters (to update the UI)
         # - we don't want to retrigger the autorefit function
-        self._replot_spectrum_after_autorefit(False)
+        self._set_early_replot_exit(True)
         self.auto_refit.fitted_parameters = pd.DataFrame(rows)
-        self._replot_spectrum_after_autorefit(True)
+        self._set_early_replot_exit(False)
 
         return [
             hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
@@ -536,11 +528,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         (z, y, x) = self.get_coordinates()
         if self.value is not None and self.value.data is not None:
 
-            self.bls_spectrum_in_image, self.results_at_point = (
-                self.value.data.get_spectrum_and_all_quantities_in_image(
-                    self.value.analysis, (z, y, x)
-                )
-            )
+            # First updating self.saved_fit.model
             try:
                 used_model = self.value.analysis.fit_model
                 used_model = BlsProcessingModels.from_brimfile_models(used_model)
@@ -549,7 +537,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 pn.state.notifications.warning(f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})")
                 used_model = BlsProcessingModels.Lorentzian
                 tooltip_text = f"Impossible to use file's metadata to determine the peak model. Using a default peak model instead. \n(Reported error: *{e}*)"
+            
             self.saved_fit.force_single_model(used_model, tooltip_text)
+        
+            # Then updating the rest
+            self.bls_spectrum_in_image, self.results_at_point = (
+                self.value.data.get_spectrum_and_all_quantities_in_image(
+                    self.value.analysis, (z, y, x)
+                )
+            )
+           
         else:
             self.bls_spectrum_in_image = None
 
@@ -563,14 +560,21 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     @pn.depends(
         "results_at_point",
         "saved_fit.process",
-        "saved_fit.model",
+        # "saved_fit.model", #this is not user changeable anymore - read from the brimfile instead
         "auto_refit.process",
         "auto_refit.model",
+        "auto_refit._table.value",
         "value",
         on_init=False,
     )
     @catch_and_notify(prefix="<b>Plot spectrum: </b>")
     def plot_spectrum(self):
+         # Stops recursion - ( plot_spectrum -> auto_refit_and_plot ->self.auto_refit.fitted_parameters -> auto_refit._table.value -> plot_spectrum -> ... )
+         # We can't use self.loading, because it'S also set to true by retrieve_point_rawdata, and we have 
+         # retrieve_point_rawdata -> self.results_at_point -> *this function* and we want that run to be executed
+        if self._early_replot_exit:
+            return 
+        
         self.loading = True
         now = time.time()
         print(f"plot_spectrum at {now:.4f} seconds")
