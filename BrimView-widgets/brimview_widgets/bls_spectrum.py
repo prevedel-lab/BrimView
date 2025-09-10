@@ -24,6 +24,8 @@ from panel.custom import PyComponent
 from .bls_types import bls_param
 from .widgets import SwitchWithLabels
 
+from bokeh.models.widgets.tables import HTMLTemplateFormatter
+
 
 def _convert_numpy(obj):
     """
@@ -61,39 +63,9 @@ class FitParam(pn.viewable.Viewer):
         allow_refs=True,
     )
 
-    fitted_parameters = param.Dict(
+    fitted_parameters = param.DataFrame(
         default=None,
         doc="""Parameters from the fit. This is expected to be in the form:
-        {
-            "peak_name": {"param1": value1, "param2": value2, ...}, 
-            "peak_name2": {...},
-            ...
-        }""",
-    )
-
-    lower_bounds = param.Dict(
-        default=None,
-        doc="""Lower_bounds of the fit. This is expected to be in the form:
-        {
-            "peak_name": {"param1": value1, "param2": value2, ...}, 
-            "peak_name2": {...},
-            ...
-        }""",
-    )
-
-    starting_value = param.Dict(
-        default=None,
-        doc="""Starting value of the fit. This is expected to be in the form:
-        {
-            "peak_name": {"param1": value1, "param2": value2, ...}, 
-            "peak_name2": {...},
-            ...
-        }""",
-    )
-
-    upper_bound = param.Dict(
-        default=None,
-        doc="""Upper bound of the fit. This is expected to be in the form:
         {
             "peak_name": {"param1": value1, "param2": value2, ...}, 
             "peak_name2": {...},
@@ -116,17 +88,51 @@ class FitParam(pn.viewable.Viewer):
 
         self._table = pn.widgets.Tabulator(
             show_index=False,
-            disabled=True,
+            disabled=False,
             groupby=["Peak"],
-            hidden_columns=["Peak"],
+            hidden_columns=["Peak", "Description"],
             configuration={
                 "groupStartOpen": False  # This makes all groups collapsed initially
             },
+            editors={
+                # Making sure these 2 columns are not editable
+                "Parameter": None,
+                "Value": None,
+                "Description": None,
+            },
+            groups={
+                "Fit constraints": ["Lower bound", "Starting value", "Upper bound"]
+            },
+            formatters={
+                "Parameter": HTMLTemplateFormatter(
+                    template="""
+                    <% if (typeof Description !== "undefined" && Description) { %>
+                        <span class="dotted-tooltip" title="<%= Description %>"><%= value %></span>
+                    <% } else { %>
+                        <span><%= value %></span>
+                    <% } %>
+                    """
+                )
+            },
+            stylesheets=[
+                """
+                .dotted-tooltip {
+                    border-bottom: 1px dotted #333;  /* dotted underline */
+                    cursor: help;                    /* cursor hint */
+                }        
+                """]
         )
+
+        self._reset_button = pn.widgets.Button(
+            name="Reset constraints",
+            button_type="primary",
+            visible=False,
+        )
+        self._reset_button.on_click(self._reset_fitted_parameters)
 
         # For type annotation
         self.model: BlsProcessingModels
-        self.fitted_parameters: dict[str, float] | None
+        self.fitted_parameters
         self.process: bool
 
     def _update_model_widget(self):
@@ -138,30 +144,29 @@ class FitParam(pn.viewable.Viewer):
             self._model_dropdown.disabled = False
             self._model_dropdown.description = self.param.model.doc
 
-    @pn.depends("fitted_parameters", watch=True)
-    def _update_table(self):
+    @pn.depends("_table.value")
+    def _test_table_update(self):
+        print("table")
 
+    def _reset_fitted_parameters(self, _event):
+        self.fitted_parameters = None
+
+    @pn.depends(
+        "fitted_parameters",
+        watch=True,
+    )
+    def _update_table(self):
         if self.fitted_parameters is None:
             self._table.value = None
             return
-
-        rows = []
-        for name, value in self.fitted_parameters.items():
-            for param_name, param_value in value.items():
-                rows.append(
-                    {"Peak": name, "Value": param_value, "Parameter": param_name}
-                )
-        df = pd.DataFrame(rows, columns=["Parameter", "Value", "Peak"])
-        self._table.value = df
+        self._table.value = self.fitted_parameters
 
     def __panel__(self):
         return pn.Card(
             self._process_switch,
-            self._model_dropdown,
+            pn.FlexBox(self._model_dropdown, self._reset_button),
             self._table,
-
             title=self.name,
-            collapsible=False,
             margin=5,
         )
 
@@ -228,10 +233,15 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             analysis=result_plot.param.bls_analysis,
         )
 
+        # Configure saved_fit widget
         self.saved_fit.param.model.objects = {
             "Lorentzian": BlsProcessingModels.Lorentzian
         }
         self.saved_fit._update_model_widget()
+
+        # Configure autore_fit widget
+        self.auto_refit._reset_button.visible = True
+        self._replot_spectrum_after_autorefit(True)
 
         # Because we're not a pn.Viewer anymore, by default we lost the "card" display
         # so despite us returning a card from __panel__, the shown card didn't match
@@ -240,6 +250,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         # Annoation help
         self.model_fit: BlsProcessingModels
+
+    def _replot_spectrum_after_autorefit(self, enable):
+        if enable:
+            self._replot_watcher = self.auto_refit._table.param.watch(
+                lambda event: self.plot_spectrum(), "value"
+            )
+        else:
+            if self._replot_watcher is not None:
+                self.auto_refit._table.param.unwatch(self._replot_watcher)
+            self._replot_watcher = None
 
     @catch_and_notify(prefix="<b>Compute fitted curves: </b>")
     def _compute_fitted_curves(self, x_range: np.ndarray, z, y, x):
@@ -281,7 +301,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 )
                 continue
 
-        self.saved_fit.fitted_parameters = fit_params
+        # self.saved_fit.fitted_parameters = fit_params
         return fits
 
     @pn.depends("loading", watch=True)
@@ -352,8 +372,13 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             return []
 
         print("Re-fitting curves...")
-        # number of peaks
+        # Creating the multipeak model function
         n_peaks = len(self.value.analysis.list_existing_peak_types())
+        multi_peak_model = MultiPeakModel(
+            base_model=self.auto_refit.model, n_peaks=n_peaks
+        )
+
+        # Retrieving paramters from saved fit
         previous_fits = {}
         qts = self.results_at_point
         i = 0
@@ -373,38 +398,95 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             i += 1
 
         print(f"Previous fits: {previous_fits}")
-        # the base model function (e.g. Lorentzian, DHO, etc.)
 
-        multi_peak_model = MultiPeakModel(
-            base_model=self.auto_refit.model, n_peaks=n_peaks
-        )
+        # If possible, we use existing/previous information for the fit
+        # This allows for GUI interaction
+        stored_fitted_parameters = {}
+        stored_upper_bounds = {}
+        stored_starting_values = {}
+        stored_lower_bounds = {}
+        if self.auto_refit.fitted_parameters is not None:
+            rows: pd.DataFrame = self.auto_refit.fitted_parameters
+            print(f"rows: {rows}")
+            # Converting from pd.DataFrame into the dict of parameters
+            for (
+                index,
+                row,
+            ) in (
+                rows.iterrows()
+            ):  # TODO: supposedly very slow, probably best to change this (make the model accept dataframes ? )
+                print(row)
+                peak = row["Peak"]
+                param = row["Parameter"]
 
-        # TODO: define sensible initial guess (p0) and bounds!
-        # here just as placeholders
-        p0 = multi_peak_model._flatten_kwargs(previous_fits)
+                stored_fitted_parameters[f"{param}{peak}"] = row["Value"]
+                stored_upper_bounds[f"{param}{peak}"] = row["Upper bound"]
+                stored_starting_values[f"{param}{peak}"] = row["Starting value"]
+                stored_lower_bounds[f"{param}{peak}"] = row["Lower bound"]
 
-        # You could try to make something smart here to block the multiple offsets
-        lower_bound = [-np.inf] * len(p0)
-        upper_bound = [np.inf] * len(p0)
-        bounds = (lower_bound, upper_bound)
+        # Checking if what we got is still compatible with what we want
+        # (ie parameters for 2 peaks and we want 2 peaks)
+        if len(stored_starting_values) == multi_peak_model.n_args:
+            # Using the values from the table for the fit
+            p0 = multi_peak_model._flatten_kwargs(stored_starting_values)
+            lower_bounds = multi_peak_model._flatten_kwargs(stored_lower_bounds)
+            upper_bounds = multi_peak_model._flatten_kwargs(stored_upper_bounds)
+
+        else:
+            # Using "default" values: values from the saved fit + no bounds
+            p0 = multi_peak_model._flatten_kwargs(previous_fits)
+            lower_bounds = [-np.inf] * len(p0)
+            upper_bounds = [np.inf] * len(p0)
 
         # perform fit
+        print(
+            "[TRACE] scipy.curve_fit called with: \n"
+            + f"p0 = {p0} \n"
+            + f"lower bounds = {lower_bounds} \n"
+            + f"upper bounds = {upper_bounds}"
+        )
         popt, pcov = scipy.optimize.curve_fit(
             multi_peak_model.function_flat,
             frequency,
             PSD,
             p0=p0,
-            bounds=bounds,
+            bounds=(lower_bounds, upper_bounds),
         )
         y_fit = multi_peak_model.function_flat(x_range, *popt)
 
-        print("Fitted args:", popt)
-        # print("As kwargs:", multi_peak_model._unflatten_args(popt))
-        # compute fitted curve for plotting
+        arg_description = self.auto_refit.model.arguments_documentation
 
-        self.auto_refit.fitted_parameters = multi_peak_model.unflatten_args_grouped(
-            popt
-        )
+        print("Fitted args:", popt)
+
+        # Saving the different informations from the curve_fit as dict
+        # we use param.update to update all the variable *at the same time*,
+        # and to only trigger the update event once
+
+        fitted_parameters = multi_peak_model.unflatten_args_grouped(popt)
+        upper_bounds = multi_peak_model.unflatten_args_grouped(upper_bounds)
+        starting_values = multi_peak_model.unflatten_args_grouped(p0)
+        lower_bounds = multi_peak_model.unflatten_args_grouped(lower_bounds)
+        rows = []
+        for name, value in fitted_parameters.items():
+            for param_name, param_value in value.items():
+                rows.append(
+                    {
+                        "Peak": name,
+                        "Parameter": param_name,
+                        "Value": param_value,
+                        "Upper bound": upper_bounds[name][param_name],
+                        "Starting value": starting_values[name][param_name],
+                        "Lower bound": lower_bounds[name][param_name],
+                        "Description": arg_description.get(param_name, "Fitting variable"),
+                    }
+                )
+
+        # To avoid recursion :
+        # - we want to change auto_refit.fitted_parameters (to update the UI)
+        # - we don't want to retrigger the autorefit function
+        self._replot_spectrum_after_autorefit(False)
+        self.auto_refit.fitted_parameters = pd.DataFrame(rows)
+        self._replot_spectrum_after_autorefit(True)
 
         return [
             hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
@@ -436,6 +518,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         self.loading = False
 
     # TODO watch=true for side effect ?
+    # Also: self.auto_refit._table.param.watch(plot_spectrum, 'value')
     @pn.depends(
         "results_at_point",
         "saved_fit.process",
@@ -461,15 +544,24 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             (PSD, frequency, PSD_units, frequency_units) = self.bls_spectrum_in_image
             x_range = np.arange(np.nanmin(frequency), np.nanmax(frequency), 0.1)
 
-            if self.saved_fit.process:
-                saved_curves = self.fitted_curves(x_range, z, y, x)
-                curves.extend(saved_curves)
+            # Try catch clauses, so that an error in one curve doesn't
+            # block the others to be displayed
+            try:
+                if self.saved_fit.process:
+                    saved_curves = self.fitted_curves(x_range, z, y, x)
+                    curves.extend(saved_curves)
+            except Exception as e:
+                pn.state.notifications.warning(f"<b>Plot saved fit: </b> {e}")
 
-            if self.auto_refit.process:
-                refit_curves = self.auto_refit_and_plot(
-                    x_range, PSD, frequency, PSD_units, frequency_units
-                )
-                curves.extend(refit_curves)
+            try:
+                if self.auto_refit.process:
+                    refit_curves = self.auto_refit_and_plot(
+                        x_range, PSD, frequency, PSD_units, frequency_units
+                    )
+                    curves.extend(refit_curves)
+            except Exception as e:
+                pn.state.notifications.warning(f"<b>Auto-refit: </b> {e}")
+
         else:
             print("Warning: No BLS data available. Cannot plot spectrum.")
             # If no data is available, we create empty values
@@ -484,12 +576,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                     hv.Dimension("PSD", unit=PSD_units),
                 ],
                 label=f"Acquired points",
-            ).opts(
-                color="black",
-                axiswise=True,
-                marker='+',
-                size=10
-            )
+            ).opts(color="black", axiswise=True, marker="+", size=10)
             # * hv.Curve((frequency, PSD), label=f"interpolation").opts(
             #     color="black",
             #     axiswise=True,

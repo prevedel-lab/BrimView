@@ -128,6 +128,15 @@ class MultiPeakModel(param.Parameterized):
     def label(self):
         return f"{self.n_peaks}x ({self.base_model.label})"
 
+    @property
+    def n_args(self):
+        """
+        Returns the number of arguments that the multipeak function expects
+
+        For gaussian(nu, b, a, nu0, w) and n_peaks=2, it should return 8 (= 2 * len([b, a, nu0, w]))
+        """
+        return len(self._param_names) * self.n_peaks
+    
     def _create_multipeak_function(self):
         """
         Creates a function that sums multiple instances of the base model.
