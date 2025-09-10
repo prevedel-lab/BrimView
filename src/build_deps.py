@@ -10,7 +10,7 @@ ROOT = Path(__file__).parent.parent.resolve() # This file resides in {project}/s
 PYODIDE_DIR = ROOT / "pyodide"
 DEPENDENCIES = [
     ROOT / "./BrimView-widgets",
-#    ROOT / "../brimfile",
+    ROOT / "../brimfile",
 ]
 
 def venv_python(path: Path) -> Path:
