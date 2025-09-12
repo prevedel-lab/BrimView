@@ -68,6 +68,9 @@ data_protection = pn.Row(
     )
 )
 
+if brimview_widgets.utils.is_running_from_docker():
+    data_protection = None
+
 credits = pn.Row(
     pn.Card(
         pn.pane.HTML(
