@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy your app code
 COPY src/index.py /app/
+COPY src/BrimView.png /app/src/
 COPY BrimView-widgets /app/BrimView-widgets/
 
 # Install Python deps
