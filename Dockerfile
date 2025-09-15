@@ -26,3 +26,5 @@ EXPOSE 5006
 CMD ["panel", "serve", "index.py", \
 "--address", "0.0.0.0", "--port", "5006", "--allow-websocket-origin", "*", \
 "--args", "from-docker" ]
+
+# TODO set properly the allow-websocket-origin (https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636)
