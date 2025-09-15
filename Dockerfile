@@ -18,9 +18,12 @@ COPY BrimView-widgets /app/BrimView-widgets/
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir "./BrimView-widgets[processing, remote-store]"
 
-
 # Expose port
 EXPOSE 5006
+
+# create a non root user
+RUN useradd -m panel -d /home/panel
+USER panel
 
 # Start the Panel app
 CMD ["panel", "serve", "index.py", \
