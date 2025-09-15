@@ -1,0 +1,29 @@
+name: Build and Push Docker Image to GHCR
+
+on:
+  push:
+    tags:
+      - '*'   # runs on any tag push
+  workflow_dispatch:  # Allows you to trigger the workflow manually
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write    # Needed to push to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/brimview:latest
+          docker build -t $IMAGE_NAME .
+
+      - name: Push Docker image to GHCR
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/brimview:latest
+          docker push $IMAGE_NAME
