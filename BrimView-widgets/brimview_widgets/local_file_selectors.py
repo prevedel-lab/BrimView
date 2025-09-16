@@ -145,7 +145,7 @@ class TinkerFileSelector(pn.viewable.Viewer):
                 )
         else:
             local_data_widget = pn.Card(
-                    pn.pane.HTML("<a href='https://biobrillouin.org/brimview/'>Load in-browser version</a>"),
+                    pn.pane.HTML("<a href='https://biobrillouin.org/brimview-local/'>Load in-browser version</a>"),
                     title="Local data",
                     margin=5,
                     sizing_mode="stretch_width"
