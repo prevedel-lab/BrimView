@@ -28,5 +28,5 @@ USER panel
 # Start the Panel app
 # see https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636 for allow-websocket-origin
 CMD ["panel", "serve", "index.py", \
-"--address", "0.0.0.0", "--port", "5006", "--allow-websocket-origin", "https://brimview.embl.org/", \
+"--address", "0.0.0.0", "--port", "5006", "--allow-websocket-origin", "brimview.embl.org", \
 "--args", "from-docker" ]
