@@ -10,7 +10,7 @@ import brimfile as bls  # Force import of brimfile
 import brimview_widgets
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
@@ -67,6 +67,9 @@ data_protection = pn.Row(
         collapsible=False,
     )
 )
+
+if brimview_widgets.utils.is_running_from_docker():
+    data_protection = None
 
 credits = pn.Row(
     pn.Card(

@@ -11,7 +11,7 @@ from panel.io import hold
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 
-from .utils import catch_and_notify
+from .utils import catch_and_notify, is_running_from_docker
 from .widgets import HorizontalEditableIntSlider
 
 
@@ -287,7 +287,7 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data = self.bls_file.get_data(data_index)
 
     def __panel__(self):
-        if pn.state._is_pyodide:
+        if pn.state._is_pyodide or is_running_from_docker():
             rw_toggle = None
         else:
             rw_toggle = pn.widgets.Toggle.from_param(

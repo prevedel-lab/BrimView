@@ -1,9 +1,13 @@
 import panel as pn
 import param
-import tkinter as tk
 
-from tkinter import filedialog
-from tkinterdnd2 import TkinterDnD, DND_FILES  # Requires tkinterdnd2 library
+from .utils import is_running_from_docker
+_running_from_docker = is_running_from_docker()
+
+if not _running_from_docker:
+    import tkinter as tk
+    from tkinter import filedialog
+    from tkinterdnd2 import TkinterDnD, DND_FILES  # Requires tkinterdnd2 library
 
 from .s3file_selector import S3FileSelector
 
@@ -131,14 +135,24 @@ class TinkerFileSelector(pn.viewable.Viewer):
         self.s3FileSelector.set_update_function(func)
 
     def __panel__(self):
-        return pn.FlexBox(
-            pn.Card(
-                self.filedialog_button,
-                self.dragNdrop_button,
-                title="Local data",
-                margin=5
+        if not _running_from_docker:
+            local_data_widget = pn.Card(
+                    self.filedialog_button,
+                    self.dragNdrop_button,
+                    title="Local data",
+                    margin=5
 
-            ), 
+                )
+        else:
+            local_data_widget = pn.Card(
+                    pn.pane.HTML("<a href='https://biobrillouin.org/brimview-local/'>Load in-browser version</a>"),
+                    title="Local data",
+                    margin=5,
+                    sizing_mode="stretch_width"
+                )
+
+        return pn.FlexBox(
+            local_data_widget, 
             pn.Card(
                 self.s3FileSelector,
                 title="S3 online data",

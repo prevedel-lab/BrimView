@@ -3,5 +3,8 @@ build/*
 pyodide/*
 my_cache.sqlite
 .env
+.venv
+.vscode
+.DS_store
 bls_examples/*
 src/pn_test.py
