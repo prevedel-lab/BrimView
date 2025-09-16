@@ -716,7 +716,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
         main_card = pn.Card(
             pn.Row(self.img_axis_3_slice_widget, align="center"),
-            pn.pane.HoloViews(self._plot_data),
+            pn.pane.HoloViews(self._plot_data, sizing_mode="stretch_width"),
             self.result_options,
             axis_options,
             rendering_options,
