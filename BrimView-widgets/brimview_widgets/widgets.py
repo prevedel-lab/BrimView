@@ -58,6 +58,8 @@ class SwitchWithLabels(pn.viewable.Viewer):
         self._label_true = pn.pane.Markdown(self.label_true)
         self._label_false = pn.pane.Markdown(self.label_false)
         self._switch = pn.widgets.Switch.from_param(self.param.value)
+        # Hide the label of the switch itself
+        self._switch.name = ""
         self._switch.align = "center"
         self._layout = pn.Row(self.label_false, self._switch, self.label_true)
 
