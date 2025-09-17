@@ -13,7 +13,7 @@ import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 __version__ = "0.2.1"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
-pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", notifications=True)
+pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", "modal", notifications=True)
 pn.extension(
     raw_css=[
         """
@@ -79,6 +79,7 @@ credits = pn.Row(
         pn.pane.HTML(
             f"<p><small>Developed with <a href='https://panel.holoviz.org/'>Panel</a> by Sebastian Hambura and Carlo Bevilacqua at <a href='https://www.prevedel.embl.de/'>Prevedel lab</a>.</small></p><p><small>BrimView {__version__}, brimfile {bls.__version__}, brimview-widgets {brimview_widgets.__version__} </small></p>",
         ),
+        brimview_widgets.DebugReport(),
         hide_header=True,
         title="Credits",
         styles={"background": "White"},
