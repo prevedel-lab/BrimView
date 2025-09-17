@@ -1,4 +1,4 @@
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 import sys
 
@@ -8,6 +8,7 @@ from .bls_spectrum import BlsSpectrumVisualizer
 from .s3file_selector import S3FileSelector
 from . sampledata_loader import SampledataLoader
 from .bls_metadata import BlsMetadata
+from .debug_report_widget import DebugReport
 
 # Keep treatment widget out of the wasm package
 if "pyodide" in sys.modules:
