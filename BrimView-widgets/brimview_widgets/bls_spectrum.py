@@ -87,7 +87,7 @@ class FitParam(pn.viewable.Viewer):
         self._model_dropdown = pn.widgets.Select.from_param(self.param.model, width=200)
 
         self._table = pn.widgets.Tabulator(
-            pd.DataFrame({}),
+            self._default_dataframe(),
             show_index=False,
             disabled=False,
             groupby=["Peak"],
@@ -126,6 +126,7 @@ class FitParam(pn.viewable.Viewer):
                 }        
                 """
             ],
+            visible = False
         )
 
         self._reset_button = pn.widgets.Button(
@@ -155,6 +156,27 @@ class FitParam(pn.viewable.Viewer):
     def _reset_fitted_parameters(self, _event):
         self.fitted_parameters = None
 
+    def _default_dataframe(self, with_fitting_constraint: bool = True):
+        if with_fitting_constraint:
+            return pd.DataFrame(
+                {
+                    "Parameter": [],
+                    "Value": [],
+                    "Description": [],
+                    "Lower bound": [],
+                    "Starting value": [],
+                    "Upper bound": [],
+                }
+            )
+        else:
+            return pd.DataFrame(
+                {
+                    "Parameter": [],
+                    "Value": [],
+                    "Description": [],
+                }
+            )
+
     def force_single_model(
         self, model: BlsProcessingModels, tooltip_text: None | str = None
     ):
@@ -170,9 +192,12 @@ class FitParam(pn.viewable.Viewer):
     )
     def _update_table(self):
         if self.fitted_parameters is None:
-            self._table.value = None
+            self._table.visible = False
+            self._table.value = self._default_dataframe()
             return
+        
         self._table.value = self.fitted_parameters
+        self._table.visible = True
 
     def __panel__(self):
         return pn.Card(
