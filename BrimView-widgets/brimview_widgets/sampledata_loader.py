@@ -1,6 +1,6 @@
 import panel as pn
 
-from .utils import catch_and_notify
+from .utils import catch_and_notify, is_running_from_docker
 
 class SampledataLoader(pn.viewable.Viewer):
 
@@ -10,6 +10,14 @@ class SampledataLoader(pn.viewable.Viewer):
         "Zebrafish ECM - SBS": "https://storage.googleapis.com/brim-example-files/zebrafish_ECM_SBS.brim.zarr",
         "Oil beads - FTBM": "https://storage.googleapis.com/brim-example-files/oil_beads_FTBM.brim.zarr"
     }
+    if is_running_from_docker():
+        print("Loading sample data from EMBL S3 bucket")
+        _sampledata = {
+        "Drosophila - LSBM": "https://s3.embl.de/brim-example-files/drosophila_LSBM.brim.zarr",
+        "Zebrafish eye - confocal": "https://s3.embl.de/brim-example-files/zebrafish_eye_confocal.brim.zarr",
+        "Zebrafish ECM - SBS": "https://s3.embl.de/brim-example-files/zebrafish_ECM_SBS.brim.zarr",
+        "Oil beads - FTBM": "https://s3.embl.de/brim-example-files/oil_beads_FTBM.brim.zarr"
+        }
 
     def __init__(self, **params):
         super().__init__(**params)
