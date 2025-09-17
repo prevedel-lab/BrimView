@@ -181,6 +181,7 @@ class FitParam(pn.viewable.Viewer):
             self._table,
             title=self.name,
             margin=5,
+            collapsed = True,
         )
 
 
@@ -208,6 +209,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
     saved_fit = FitParam(name="Saved fit")
     auto_refit = FitParam(name="Auto re-fit")
+    # make the auto_refit off by default
+    auto_refit._process_switch.value = False
 
     @pn.depends("auto_refit.model", watch=True)
     def _test_remodel_fit(self):

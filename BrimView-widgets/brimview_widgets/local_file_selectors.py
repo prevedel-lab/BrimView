@@ -148,7 +148,8 @@ class TinkerFileSelector(pn.viewable.Viewer):
                     pn.pane.HTML("<a href='https://biobrillouin.org/brimview-local/'>Load in-browser version</a>"),
                     title="Local data",
                     margin=5,
-                    sizing_mode="stretch_width"
+                    sizing_mode="stretch_width",
+                    collapsed = True
                 )
 
         return pn.FlexBox(
@@ -156,6 +157,7 @@ class TinkerFileSelector(pn.viewable.Viewer):
             pn.Card(
                 self.s3FileSelector,
                 title="S3 online data",
-                margin=5
+                margin=5,
+                collapsed = True
             )
         )
