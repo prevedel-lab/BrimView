@@ -577,9 +577,12 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 used_model = BlsProcessingModels.from_brimfile_models(used_model)
                 tooltip_text = "The peak model was retrieved from the file's metadata"
             except Exception as e:
-                pn.state.notifications.warning(
-                    f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})"
-                )
+
+                # If the user is not wanting to display the saved_fit, then let's just do this silently
+                if self.saved_fit.process:
+                    pn.state.notifications.warning(
+                        f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})"
+                    )
                 used_model = BlsProcessingModels.Lorentzian
                 tooltip_text = f"Impossible to use file's metadata to determine the peak model. Using a default peak model instead. \n(Reported error: *{e}*)"
 

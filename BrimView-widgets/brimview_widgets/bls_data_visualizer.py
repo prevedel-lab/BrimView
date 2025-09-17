@@ -514,6 +514,8 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         and converts it back into the (z,y,z) coordinates of the dataset
         """
         print(f"Clicked {time.time()}")
+
+        # Getting (z, y, x) in the choosen coordinate system (either px or real_units)
         horizontal_coord = x
         vertical_coord = y
         match self.img_axis_1:
@@ -533,12 +535,14 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
                 z = vertical_coord
 
         match self.img_axis_3:
+            # self.img_axis_3_slice is an index, so we need to convert it into the units used 
             case "x":
-                x = self.img_axis_3_slice
+                x = self.img_axis_3_slice * self.x_px.value
             case "y":
-                y = self.img_axis_3_slice
+                y = self.img_axis_3_slice * self.y_px.value
             case "z":
-                z = self.img_axis_3_slice
+                z = self.img_axis_3_slice * self.z_px.value
+
 
         # === weird WORKAROUND ===
         # - this function is being called by stream from Holoview
@@ -556,11 +560,17 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         # This has been tested with `panel serve` and `panel convert`
 
         def _panel_update():
+            
             self.dataset_zyx_click = (
                 round(z / self.z_px.value),
                 round(y / self.y_px.value),
                 round(x / self.x_px.value),
             )
+            unit = f"(z={z} {self.z_px.units}, y={y} {self.y_px.units}, x={x} {self.x_px.units})"
+            index = f"(z={ self.dataset_zyx_click[0]}, y={ self.dataset_zyx_click[1]}, x={self.dataset_zyx_click[2]})"
+            user_msg = f"Clicked on pixel: <br/> 🌍: {unit} <br/> 🔢: {index}"
+            print(user_msg)
+            pn.state.notifications.info(user_msg)
 
         pn.state.add_periodic_callback(_panel_update, period=200, count=1)
 
