@@ -8,35 +8,12 @@ from importlib.metadata import version, packages_distributions
 
 from urllib.parse import urljoin
 
-def get_client_info():
+def get_url():
     """
     Returns a dict with full URL, browser type/version, OS, device, and language.
     Works only in a running Panel server context.
     """
-    ctx = pn.state.curdoc.session_context
-    if ctx and ctx.request:
-        # Full URL
-        scheme = ctx.request.headers.get("X-Forwarded-Proto", "http")
-        host = ctx.request.host  # includes port
-        full_url = f"{scheme}://{host}{ctx.request.uri}"
-
-        # Browser info
-        user_agent = ctx.request.headers.get("User-Agent", "Unknown")
-
-        # Language
-        language = ctx.request.headers.get("Accept-Language", "Unknown")
-
-        return {
-            "url": full_url,
-            "user_agent": user_agent,
-            "language": language
-        }
-
-    return {
-        "url": None,
-        "user_agent": None,
-        "language": None
-    }
+    return f"url: {pn.state.location.href}"
 
 def browser_info():
     ctx = pn.state.curdoc.session_context
@@ -102,14 +79,14 @@ class DebugReport(pn.viewable.Viewer):
         for mod, ver in other_libs.items():
             other_libs_v += f"{mod}: {ver} \n"
         
-        client_info = "\n".join(f"{k}: {v}" for k, v in get_client_info().items())
         # The markdown string needs to be without tabs to be properly displayed in the widget. 
         return pn.pane.Markdown(
             f"""
 ## General environment information:  
 
 ```
-{client_info}
+{get_url()}
+{browser_info()}
 {python_version()}  
 ```
 
