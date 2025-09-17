@@ -68,7 +68,8 @@ data_protection = pn.Row(
     )
 )
 
-if brimview_widgets.utils.is_running_from_docker():
+_running_from_docker = brimview_widgets.utils.is_running_from_docker()
+if _running_from_docker:
     data_protection = None
 
 credits = pn.Row(
@@ -118,6 +119,10 @@ if pn.state._is_pyodide:
 async def build_ui():
     # Needs to be defined before, because will vary depending on the backend
     analyser_placeholder = pn.layout.FlexBox()
+    TreamentWidget_webapp = pn.pane.Markdown(
+            # TODO: add link to download page
+            "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here](https://github.com/prevedel-lab/BrimView/releases/latest)"
+        )
 
     print("Building UI")
     if "pyodide" in sys.modules:  # We're in the Pyodide case
@@ -162,11 +167,7 @@ async def build_ui():
         )
 
         # Creating the treatment widget
-        TreamentWidget = pn.pane.Markdown(
-            # TODO: add link to download page
-            "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here](https://github.com/prevedel-lab/BrimView/releases/latest)"
-        )
-        analyser_placeholder.append(TreamentWidget)
+        TreamentWidget = TreamentWidget_webapp
 
     else:  # We're in `panel serve` case
 
@@ -186,9 +187,13 @@ async def build_ui():
         )
 
         # Creating the treatment widget
-        TreamentWidget = brimview_widgets.BlsDoTreatment(FileSelector)
-        # TreamentWidget = pn.pane.Markdown("TEST")
-        analyser_placeholder.append(TreamentWidget)
+        if _running_from_docker: 
+            TreamentWidget = TreamentWidget_webapp
+        else:
+            TreamentWidget = brimview_widgets.BlsDoTreatment(FileSelector)
+        
+    
+    analyser_placeholder.append(TreamentWidget)
 
     # ====
     # Populate main area
