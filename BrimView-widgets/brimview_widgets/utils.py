@@ -108,3 +108,18 @@ def is_running_from_docker():
     """
     # Check if panel serve was passed 'from-docker' as one of the --args
     return 'from-docker' in sys.argv
+
+def safe_get(container, *keys, default=None):
+    """
+    Safely get a nested value from dict-like containers.
+    
+    Example:
+        safe_get(qts, "Width", peak.name, default=None)
+    """
+    try:
+        value = container
+        for key in keys:
+            value = value[key]
+        return value.value
+    except Exception:
+        return default

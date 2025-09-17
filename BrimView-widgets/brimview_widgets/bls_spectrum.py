@@ -17,7 +17,7 @@ import brimfile as bls
 from .models import BlsProcessingModels, MultiPeakModel
 from .bls_data_visualizer import BlsDataVisualizer
 
-from .utils import catch_and_notify
+from .utils import catch_and_notify, safe_get
 
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
@@ -100,9 +100,9 @@ class FitParam(pn.viewable.Viewer):
                 "Parameter": None,
                 "Value": None,
                 "Description": None,
-                "Lower bound": {"type": "number"}, 
-                "Starting value": {"type": "number"}, 
-                "Upper bound": {"type": "number"}, 
+                "Lower bound": {"type": "number"},
+                "Starting value": {"type": "number"},
+                "Upper bound": {"type": "number"},
             },
             groups={
                 "Fit constraints (🖉)": ["Lower bound", "Starting value", "Upper bound"]
@@ -129,11 +129,9 @@ class FitParam(pn.viewable.Viewer):
         )
 
         self._reset_button = pn.widgets.Button(
-            name="Reset constraints",
-            button_type="primary",
-            visible=False
+            name="Reset constraints", button_type="primary", visible=False
         )
-        self._reset_button.align = ('start', 'end')
+        self._reset_button.align = ("start", "end")
         self._reset_button.on_click(self._reset_fitted_parameters)
 
         # For type annotation
@@ -157,7 +155,9 @@ class FitParam(pn.viewable.Viewer):
     def _reset_fitted_parameters(self, _event):
         self.fitted_parameters = None
 
-    def force_single_model(self, model: BlsProcessingModels, tooltip_text: None | str = None):
+    def force_single_model(
+        self, model: BlsProcessingModels, tooltip_text: None | str = None
+    ):
         self.param.model.objects = {model.label: model}
         self.model = model
         if tooltip_text is not None:
@@ -176,7 +176,7 @@ class FitParam(pn.viewable.Viewer):
 
     def __panel__(self):
         return pn.Card(
-            self._process_switch, 
+            self._process_switch,
             pn.Row(self._model_dropdown, self._reset_button),
             self._table,
             title=self.name,
@@ -247,7 +247,9 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         )
 
         # Configure saved_fit widget
-        self.saved_fit.force_single_model(BlsProcessingModels.Lorentzian, "Using default peak model")
+        self.saved_fit.force_single_model(
+            BlsProcessingModels.Lorentzian, "Using default peak model"
+        )
 
         # Configure autore_fit widget
         self.auto_refit._reset_button.visible = True
@@ -260,7 +262,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         # Annoation help
         self.model_fit: BlsProcessingModels
-
 
     def _set_early_replot_exit(self, enable):
         self._early_replot_exit = enable
@@ -276,12 +277,30 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         df_rows = []
 
         for peak in self.value.analysis.list_existing_peak_types():
-            width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
-            shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
-            amplitude = qts[bls.Data.AnalysisResults.Quantity.Amplitude.name][
-                peak.name
-            ].value
-            offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
+            width = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Width.name,
+                peak.name,
+                default=None,
+            )
+            shift = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Shift.name,
+                peak.name,
+                default=None,
+            )
+            amplitude = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Amplitude.name,
+                peak.name,
+                default=None,
+            )
+            offset = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Offset.name,
+                peak.name,
+                default=None,
+            )
 
             df_rows.append(
                 {
@@ -293,8 +312,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             df_rows.append(
                 {
                     "Peak": peak.name,
-                    "Parameter": "offset",
-                    "Value": offset,
+                    "Parameter": "shift",
+                    "Value": shift,
                 }
             )
             df_rows.append(
@@ -411,12 +430,30 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         qts = self.results_at_point
         i = 0
         for peak in self.value.analysis.list_existing_peak_types():
-            width = qts[bls.Data.AnalysisResults.Quantity.Width.name][peak.name].value
-            shift = qts[bls.Data.AnalysisResults.Quantity.Shift.name][peak.name].value
-            amplitude = qts[bls.Data.AnalysisResults.Quantity.Amplitude.name][
-                peak.name
-            ].value
-            offset = qts[bls.Data.AnalysisResults.Quantity.Offset.name][peak.name].value
+            width = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Width.name,
+                peak.name,
+                default=0,
+            )
+            shift = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Shift.name,
+                peak.name,
+                default=0,
+            )
+            amplitude = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Amplitude.name,
+                peak.name,
+                default=0,
+            )
+            offset = safe_get(
+                qts,
+                bls.Data.AnalysisResults.Quantity.Offset.name,
+                peak.name,
+                default=0,
+            )
 
             # Converting to HDF5_BLS_treat naming
             previous_fits[f"b{i}"] = offset
@@ -464,8 +501,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             lower_bounds = [-np.inf] * len(p0)
             upper_bounds = [np.inf] * len(p0)
 
-
-        try: 
+        try:
             # perform fit
             print(
                 "[TRACE] scipy.curve_fit called with: \n"
@@ -484,15 +520,15 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             y_fit = multi_peak_model.function_flat(x_range, *popt)
 
             return [
-            hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
-                axiswise=True, line_dash="dotted", color="green", line_width=4
-            )
-        ]
+                hv.Curve((x_range, y_fit), label=f"{multi_peak_model.label}").opts(
+                    axiswise=True, line_dash="dotted", color="green", line_width=4
+                )
+            ]
         except Exception as e:
-            #TODO: Make a cleaner way to put some values in storage
+            # TODO: Make a cleaner way to put some values in storage
             popt = p0
             raise e
-        finally: #Whether the fit fails or not, we want to store the arguments
+        finally:  # Whether the fit fails or not, we want to store the arguments
             arg_description = self.auto_refit.model.arguments_documentation
 
             # Saving the different informations from the curve_fit as dict
@@ -525,8 +561,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             self.auto_refit.fitted_parameters = pd.DataFrame(rows)
             self._set_early_replot_exit(False)
 
-        
-
     @pn.depends("dataset_zyx_coord", watch=True, on_init=False)
     @catch_and_notify(prefix="<b>Retrieve data: </b>")
     def retrieve_point_rawdata(self):
@@ -543,19 +577,21 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 used_model = BlsProcessingModels.from_brimfile_models(used_model)
                 tooltip_text = "The peak model was retrieved from the file's metadata"
             except Exception as e:
-                pn.state.notifications.warning(f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})")
+                pn.state.notifications.warning(
+                    f"<b>Saved fit</b>: Continuing with default peak function <br/> ({e})"
+                )
                 used_model = BlsProcessingModels.Lorentzian
                 tooltip_text = f"Impossible to use file's metadata to determine the peak model. Using a default peak model instead. \n(Reported error: *{e}*)"
-            
+
             self.saved_fit.force_single_model(used_model, tooltip_text)
-        
+
             # Then updating the rest
             self.bls_spectrum_in_image, self.results_at_point = (
                 self.value.data.get_spectrum_and_all_quantities_in_image(
                     self.value.analysis, (z, y, x)
                 )
             )
-           
+
         else:
             self.bls_spectrum_in_image = None
 
@@ -578,12 +614,12 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     )
     @catch_and_notify(prefix="<b>Plot spectrum: </b>")
     def plot_spectrum(self):
-         # Stops recursion - ( plot_spectrum -> auto_refit_and_plot ->self.auto_refit.fitted_parameters -> auto_refit._table.value -> plot_spectrum -> ... )
-         # We can't use self.loading, because it'S also set to true by retrieve_point_rawdata, and we have 
-         # retrieve_point_rawdata -> self.results_at_point -> *this function* and we want that run to be executed
+        # Stops recursion - ( plot_spectrum -> auto_refit_and_plot ->self.auto_refit.fitted_parameters -> auto_refit._table.value -> plot_spectrum -> ... )
+        # We can't use self.loading, because it'S also set to true by retrieve_point_rawdata, and we have
+        # retrieve_point_rawdata -> self.results_at_point -> *this function* and we want that run to be executed
         if self._early_replot_exit:
-            return 
-        
+            return
+
         self.loading = True
         now = time.time()
         print(f"plot_spectrum at {now:.4f} seconds")
@@ -749,7 +785,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 sizing_mode="stretch_width",
             ),
             pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
-            pn.FlexBox(self.auto_refit,  self.saved_fit),
+            pn.FlexBox(self.auto_refit, self.saved_fit),
             sizing_mode="stretch_height",
         )
 
