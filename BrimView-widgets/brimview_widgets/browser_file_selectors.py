@@ -190,6 +190,7 @@ class CustomJSFileInput(WidgetBase):
 
     def __panel__(self):
         return pn.Card(
+            pn.pane.HTML('Currently <strong>only .zip files</strong> are supported. See <a href="https://prevedel-lab.github.io/brimfile/brimfile.html#store-types" target="_blank" rel="noopener noreferrer">documentation</a> to know how to generate a .zip file.'), 
             pn.FlexBox(self._html_button, self._panel_button),
             title="Local data",
             margin=5,
