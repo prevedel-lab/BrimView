@@ -30,7 +30,7 @@ USER panel
 CMD [ "panel", "serve", "index.py", \
 "--liveness", "--liveness-endpoint", "healthz", "--index=index",\
 "--address", "0.0.0.0", "--port", "5006", "--allow-websocket-origin", "brimview.embl.org", \
-"--reuse-sessions", "warm", "--global-loading-spinner", \
+"--reuse-sessions", "--global-loading-spinner", \
 "--args", "from-docker" ]
 
 # TODO activate the admin panel with
