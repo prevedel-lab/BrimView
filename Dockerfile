@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
 
 # Copy your app code
 COPY src/index.py /app/
-COPY src/test.html /app/test-dir/
 COPY src/BrimView.png /app/src/
 COPY BrimView-widgets /app/BrimView-widgets/
 
@@ -29,8 +28,9 @@ USER panel
 # Start the Panel app
 # see https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636 for allow-websocket-origin
 CMD [ "panel", "serve", "index.py", \
-"--static-dirs", "test=./test-dir", "--index=index",\
+"--liveness", "--liveness-endpoint", "healthz", "--index=index",\
 "--address", "0.0.0.0", "--port", "5006", "--allow-websocket-origin", "brimview.embl.org", \
+"--reuse-sessions", "warm", "--global-loading-spinner", \
 "--args", "from-docker" ]
 
 # TODO activate the admin panel with
