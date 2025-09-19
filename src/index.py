@@ -116,7 +116,7 @@ if pn.state._is_pyodide:
 
 
 # UI constructor (shared)
-async def build_ui():
+def build_ui():
     # Needs to be defined before, because will vary depending on the backend
     analyser_placeholder = pn.layout.FlexBox()
     TreamentWidget_webapp = pn.pane.Markdown(
@@ -244,6 +244,5 @@ async def build_ui():
 
     print("Done building UI")
 
-
-pn.state.onload(build_ui)
+build_ui()
 layout.servable()
