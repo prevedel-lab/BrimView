@@ -25,11 +25,14 @@ EXPOSE 5006
 RUN useradd -m panel -d /home/panel
 USER panel
 
+ARG ADMIN_ENDPOINT
+ENV ADMIN_ENDPOINT=$ADMIN_ENDPOINT
+
 # Start the Panel app
 # see https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636 for allow-websocket-origin
-CMD [ "panel", "serve", "index.py", \
-"--liveness", "--liveness-endpoint", "healthz", "--index=index",\
-"--address", "0.0.0.0", "--port", "5006", "--allow-websocket-origin", "brimview.embl.org", \
-"--admin", "--admin-log-level", "debug", \
-"--reuse-sessions", "--global-loading-spinner", \
-"--args", "from-docker"]
+CMD ["/bin/sh", "-c", "panel serve index.py \
+  --liveness --liveness-endpoint healthz \
+  --address 0.0.0.0 --port 5006 --allow-websocket-origin 'brimview.embl.org' \
+  --admin --admin-endpoint \"$ADMIN_ENDPOINT\" --admin-log-level debug \
+  --reuse-sessions --global-loading-spinner \
+  --args from-docker"]
