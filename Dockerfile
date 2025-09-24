@@ -30,7 +30,7 @@ ENV ADMIN_ENDPOINT=$ADMIN_ENDPOINT
 
 # Start the Panel app
 # see https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636 for allow-websocket-origin
-CMD ["/bin/sh", "-c", "panel serve index.py \
+CMD ["/bin/sh", "-c", "panel serve index.py --index=index\
   --liveness --liveness-endpoint healthz \
   --address 0.0.0.0 --port 5006 --allow-websocket-origin 'brimview.embl.org' \
   --admin --admin-endpoint \"$ADMIN_ENDPOINT\" --admin-log-level debug \
