@@ -18,6 +18,7 @@ COPY BrimView-widgets /app/BrimView-widgets/
 # Install Python deps
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir "./BrimView-widgets[processing, remote-store]"
+RUN pip install --no-cache-dir psutil
 
 # Expose port
 EXPOSE 5006
