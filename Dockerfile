@@ -33,7 +33,7 @@ ENV ADMIN_ENDPOINT=$ADMIN_ENDPOINT
 # see https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636 for allow-websocket-origin
 CMD ["/bin/sh", "-c", "panel serve index.py --index=index\
   --liveness --liveness-endpoint healthz \
-  --address 0.0.0.0 --port 5006 --allow-websocket-origin '*' \
+  --address 0.0.0.0 --port 5006 --allow-websocket-origin 'brimview.embl.org' \
   --admin --admin-endpoint \"$ADMIN_ENDPOINT\" --admin-log-level debug \
-  --reuse-sessions --global-loading-spinner \
+  --global-loading-spinner \
   --args from-docker"]
