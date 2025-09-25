@@ -232,18 +232,6 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         x = self.dataset_zyx_coord[2]
         return (z, y, x)
 
-    saved_fit = FitParam(name="Saved fit")
-    auto_refit = FitParam(name="Auto re-fit")
-    # make the auto_refit off by default
-    auto_refit._process_switch.value = False
-
-    @pn.depends("auto_refit.model", watch=True)
-    def _test_remodel_fit(self):
-        print(f"Model fit changed to {self.auto_refit.model}")
-
-    @pn.depends("auto_refit.process", watch=True)
-    def _test_model_fit(self):
-        print(self.auto_refit.process)
 
     value = param.ClassSelector(
         class_=bls_param,
@@ -273,6 +261,11 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             data=result_plot.param.bls_data,
             analysis=result_plot.param.bls_analysis,
         )
+
+        self.saved_fit = FitParam(name="Saved fit")
+        self.auto_refit = FitParam(name="Auto re-fit")
+        # make the auto_refit off by default
+        self.auto_refit._process_switch.value = False
 
         # Configure saved_fit widget
         self.saved_fit.force_single_model(
