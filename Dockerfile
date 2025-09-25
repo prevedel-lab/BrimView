@@ -37,4 +37,5 @@ CMD ["/bin/sh", "-c", "panel serve index.py --index=index\
   --address 0.0.0.0 --port 5006 --allow-websocket-origin 'brimview.embl.org' \
   --admin --admin-endpoint \"$ADMIN_ENDPOINT\" --admin-log-level debug \
   --global-loading-spinner \
+  --num-procs 0 --num-threads 0 \
   --args from-docker"]
