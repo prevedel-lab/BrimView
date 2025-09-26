@@ -236,9 +236,9 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             return
 
         # Update Analysis
-        results_list = self.bls_data.list_AnalysisResults()
+        results_list = self.bls_data.list_AnalysisResults(retrieve_custom_name=True)
         cleaned_results_list = {
-            result["name"]: result["index"] for result in results_list
+            result["custom_name"]: result["index"] for result in results_list
         }
         self.param.result_index.objects = cleaned_results_list
         self.result_index = list(cleaned_results_list.values())[0]
