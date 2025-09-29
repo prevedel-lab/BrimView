@@ -35,42 +35,39 @@ def bls_versions() -> str:
     return s
 
 def get_loaded_third_party_versions():
-    """
-    Return a dict {module_name: version} for all currently loaded third-party modules.
-    Standard library and built-ins are ignored.
-    """
-
-    # Map top-level module to its distribution version
-    module_to_version = {}
-    loaded_modules = set(name.split('.')[0] for name in sys.modules if sys.modules[name] is not None)
-
-    for dist in importlib.metadata.distributions():
+    packages = {}
+    for module_name in sys.modules.keys():
         try:
-            top_levels = dist.read_text('top_level.txt')
-            if not top_levels:
-                continue
-            for top_level in top_levels.splitlines():
-                if top_level in loaded_modules:
-                    module_to_version[top_level] = dist.version
-        except Exception:
+            dist = importlib.metadata.distribution(module_name)
+            packages[dist.metadata["Name"]] = dist.version
+        except importlib.metadata.PackageNotFoundError:
+            # Not a package with distribution metadata (e.g., built-in or local module)
             continue
-
-    return module_to_version
+        except Exception:
+            # Handle any other rare issues gracefully
+            continue
+    return packages
 
 class DebugReport(pn.viewable.Viewer):
 
     def __init__(self, **params):
         super().__init__(**params)
         # self._debug_button = pn.widgets.ButtonIcon(icon="bug", description="Display debug report")
-        self._debug_report = pn.Modal(pn.Column(self._env_report(), scroll=True, height=400))
-        self._debug_button = self._debug_report.create_button(
-            "toggle",
+        self._debug_markdown = pn.pane.Markdown()
+        self._debug_report = pn.Modal(pn.Column(self._debug_markdown, scroll=True, height=400))
+        self._debug_button = pn.widgets.Button(
             name="Display debug report",
             icon="bug",
             button_style="outline",
             icon_size="1.1em",
         )
+        self._debug_button.on_click(self._show_report)
     
+    def _show_report(self, event=None):
+        # Update modal content only when shown
+        self._debug_markdown.object = self._env_report()
+        self._debug_report.show()
+
     def _env_report(self):
         other_libs = get_loaded_third_party_versions()  
         other_libs_v = ""  
@@ -78,8 +75,7 @@ class DebugReport(pn.viewable.Viewer):
             other_libs_v += f"{mod}: {ver} \n"
         
         # The markdown string needs to be without tabs to be properly displayed in the widget. 
-        return pn.pane.Markdown(
-            f"""
+        return f"""
 ## General environment information:  
 
 ```
@@ -101,9 +97,6 @@ class DebugReport(pn.viewable.Viewer):
 ```
             """
 
-        )
-
-
-
+        
     def __panel__(self):
         return pn.FlexBox(self._debug_button, self._debug_report, margin=5, align='center')
