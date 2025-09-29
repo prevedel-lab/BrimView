@@ -90,6 +90,17 @@ class TinkerFileSelector(pn.viewable.Viewer):
         # S3 link input
         self.s3FileSelector = S3FileSelector()
 
+    def input_and_load_s3_file(self, s3_url: str):
+        """
+            This function takes the url to an s3 file and load it as the current image
+        """
+        self.s3FileSelector.s3_link.value = s3_url
+        async def _trigger_S3_loading():
+            # trigger the click of the button
+            # https://discourse.holoviz.org/t/how-to-trigger-on-click-event-of-the-button-widget/1996/3
+            self.s3FileSelector.s3_load_button.clicks +=1
+        pn.state.onload(_trigger_S3_loading)
+
     def _load_s3_file(self, event):
         s3_path = self.s3_link.value
         if s3_path:

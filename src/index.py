@@ -37,6 +37,17 @@ def resource_path(relative_path):
         return os_path.join(sys._MEIPASS, relative_path)
     return relative_path  # if not PyInstaller, return the original path
 
+def parse_query_params(file_widget: brimview_widgets.TinkerFileSelector):
+    """
+    Read the query parameters of the URL and takes the appropriate actions.
+    Important: this function should be called only after all the widgets are loaded
+    """
+    query_params = pn.state.location.query_params
+    if 'S3_loc' in query_params and not "pyodide" in sys.modules:
+        # TODO make it work also in Pyodide
+        assert isinstance(file_widget, brimview_widgets.TinkerFileSelector)
+        file_widget.input_and_load_s3_file(query_params['S3_loc'])
+
 
 # Templates can't be dynamically changed, so we need to "pre-allocate"
 # The things we need
@@ -241,6 +252,8 @@ def build_ui():
     sidebar.append(sampledata_selector)
     sidebar.append(FileSelector)
     sidebar.append(pn.VSpacer())
+
+    parse_query_params(file_widget)
 
     print("Done building UI")
 
