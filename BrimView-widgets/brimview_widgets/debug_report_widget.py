@@ -4,7 +4,7 @@ import brimfile as bls
 import HDF5_BLS_treat.treat as bls_processing
 import brimview_widgets
 import sys
-from importlib.metadata import version, packages_distributions
+import importlib.metadata
 
 from urllib.parse import urljoin
 
@@ -39,25 +39,23 @@ def get_loaded_third_party_versions():
     Return a dict {module_name: version} for all currently loaded third-party modules.
     Standard library and built-ins are ignored.
     """
-    results = {}
-    dists_map = packages_distributions()  # maps top-level modules to distributions
 
-    for name, module in sys.modules.items():
-        if module is None:
+    # Map top-level module to its distribution version
+    module_to_version = {}
+    loaded_modules = set(name.split('.')[0] for name in sys.modules if sys.modules[name] is not None)
+
+    for dist in importlib.metadata.distributions():
+        try:
+            top_levels = dist.read_text('top_level.txt')
+            if not top_levels:
+                continue
+            for top_level in top_levels.splitlines():
+                if top_level in loaded_modules:
+                    module_to_version[top_level] = dist.version
+        except Exception:
             continue
 
-        top_level = name.split(".")[0]
-        if top_level not in dists_map:
-            # not a third-party distribution (probably stdlib or builtin)
-            continue
-
-        for dist in dists_map[top_level]:
-            try:
-                results[top_level] = version(dist)
-            except Exception:
-                results[top_level] = None
-
-    return results
+    return module_to_version
 
 class DebugReport(pn.viewable.Viewer):
 
