@@ -59,6 +59,8 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     colormap = param.ObjectSelector(default=cc.palette["fire"], objects=cc.palette)
     colorrange = param.Range(default=(0, 1), bounds=None)
+    # a parameter controlling whether the autoscale for the color range should be enabled
+    autoscale = param.Boolean(default=True)
 
     # === **Internal Param**
     #   we need then to pass some signals, but we don't want them to
@@ -223,7 +225,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             self._update_result_variable()  # Read the list of available quantities and peaks
             self._update_img_data()  # Read the actual data
 
-            self._update_colorrange()  # Update the colorrange to the new data
+            self._autoscale_colorrange()  # Update the colorrange to the new data
             self._update_axis_3()  # Update the 3rd axis slice to the new data
             self._compute_histogram()
 
@@ -597,16 +599,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         frame = self._get_datasetslice()
         self.histogram = frame.hist(adjoin=False)
 
-    @(
-        param.depends(
-            "img_dataset",  # variable
-            "_update_axis_1",  # func
-            "_update_axis_2",  # func
-            "_update_axis_3",  # func
-            "img_axis_3_slice",  # variable",
-            watch=True,
-        )
-    )
+    @param.depends("bls_file", watch=True) # always update the colorange when a new file is loaded 
     @only_on_change(
         "img_dataset",  # variable
         "_update_axis_1",  # func
@@ -618,6 +611,22 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         frame = self._get_datasetslice()
         self.param.colorrange.bounds = frame.range(frame.vdims[0])
         self.colorrange = frame.range(frame.vdims[0])
+
+    # this function only updates the colorange
+    # if autoscale is on   
+    @(
+        param.depends(
+            "img_dataset",  # variable
+            "_update_axis_1",  # func
+            "_update_axis_2",  # func
+            "_update_axis_3",  # func
+            "img_axis_3_slice",  # variable",
+            watch=True,
+        )
+    ) 
+    def _autoscale_colorrange(self):
+        if self.autoscale:
+            self._update_colorrange()
 
     @(param.depends("_compute_histogram", "colorrange", watch=True))
     def _overlay_histogram(self):
@@ -704,14 +713,18 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         colormap_picker = pn.widgets.ColorMap.from_param(
             self.param.colormap, options=get_linear_colormaps(), ncols=3
         )
+        autoscale_checkbox = pn.widgets.Checkbox.from_param(self.param.autoscale, name='Autoscale')
         colorrange_picker = pn.widgets.RangeSlider.from_param(
-            self.param.colorrange, start=0, end=1, step=0.01, value_throttled=0.01
+            self.param.colorrange, start=0, end=1, step=0.01, value_throttled=0.01,
+            disabled=self.autoscale 
         )
         rendering_options = pn.Card(
             pn.FlexBox(
                 colormap_picker,
+                autoscale_checkbox,
                 colorrange_picker,
                 pn.pane.HoloViews(self._overlay_histogram),
+                align_items="center",
             ),
             title="Rendering options",
             collapsed=True,
@@ -719,6 +732,13 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             sizing_mode="stretch_width",
             margin=5,
         )
+
+        # add a callback function which is called when the
+        # autoscale_checkbox is toggled 
+        @param.depends(self.param.autoscale, watch=True)
+        def autoscale_toggled(value):
+            self.param.autoscale = value
+            colorrange_picker.disabled = self.autoscale
 
         # Seems like we need to manually update the widget's bounds
         self.img_axis_3_slice_widget = HorizontalEditableIntSlider.from_param(
