@@ -8,6 +8,7 @@ import numpy as np  # Force import of numpy
 import tifffile  # Force import of tifffile
 import brimfile as bls  # Force import of brimfile
 import brimview_widgets
+from brimview_widgets.logging import logger
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
 __version__ = "0.2.2"
@@ -25,10 +26,10 @@ pn.extension(
 )
 
 # --- Usefull debug prints ---
-print("Starting Brimview...")
-print(f"BrimView {__version__}")
-print(f"brimfile {bls.__version__}")
-print(f"brimview-widgets {brimview_widgets.__version__}")
+logger.info("Starting Brimview...")
+logger.info(f"BrimView {__version__}")
+logger.info(f"brimfile {bls.__version__}")
+logger.info(f"brimview-widgets {brimview_widgets.__version__}")
 
 
 def resource_path(relative_path):
@@ -133,7 +134,7 @@ def build_ui():
             "This widget is not available in the Webapp.\nPlease download the desktop version of BrimView from [here](https://github.com/prevedel-lab/BrimView/releases/latest)"
         )
 
-    print("Building UI")
+    logger.info("Building UI")
     if "pyodide" in sys.modules:  # We're in the Pyodide case
         # Creating the file input widget
 
@@ -236,7 +237,7 @@ def build_ui():
         bls_metadata_widget.tabulator_visibility = (
             active_tab_index == 1
         )  # Make sure this magic number corresponds to the metadata tab index
-        print(f"Metadata tab active: {bls_metadata_widget.tabulator_visibility}")
+        logger.debug(f"Metadata tab active: {bls_metadata_widget.tabulator_visibility}")
 
     pn.bind(control_metadata_widget, main_tabs.param.active, watch=True)
     # ======
@@ -253,7 +254,7 @@ def build_ui():
 
     parse_query_params(file_widget)
 
-    print("Done building UI")
+    logger.info("Done building UI")
 
 build_ui()
 layout.servable()

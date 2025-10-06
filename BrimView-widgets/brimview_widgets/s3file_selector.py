@@ -1,6 +1,7 @@
 import panel as pn
 
 from .utils import catch_and_notify
+from .logging import logger
 
 class S3FileSelector(pn.viewable.Viewer):
 
@@ -25,10 +26,10 @@ class S3FileSelector(pn.viewable.Viewer):
     def _load_s3_file(self, event):
         s3_path = self.s3_link.value
         if s3_path:
-            print(f"Selected file: {s3_path}")
+            logger.info(f"Selected file: {s3_path}")
             self._after_path_select(s3_path)
         else:
-            print("No file selected.")
+            logger.info("No file selected.")
     
     @catch_and_notify(prefix="<b>Open file: </b>")
     def _after_path_select(self, file_path: str):

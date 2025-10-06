@@ -12,6 +12,7 @@ if not _running_from_docker:
 from .s3file_selector import S3FileSelector
 
 from .utils import catch_and_notify
+from .logging import logger
 
 def load_file_dialog() -> str | None:
     file_path_out = None
@@ -104,10 +105,10 @@ class TinkerFileSelector(pn.viewable.Viewer):
     def _load_s3_file(self, event):
         s3_path = self.s3_link.value
         if s3_path:
-            print(f"Selected file: {s3_path}")
+            logger.info(f"Selected file: {s3_path}")
             self._after_path_select(s3_path)
         else:
-            print("No file selected.")
+            logger.info("No file selected.")
 
 
     def _select_file_dialog(self, event):
@@ -116,10 +117,10 @@ class TinkerFileSelector(pn.viewable.Viewer):
         """
         file_path = load_file_dialog()
         if file_path:
-            print(f"Selected file: {file_path}")
+            logger.info(f"Selected file: {file_path}")
             self._after_path_select(file_path)
         else:
-            print("No file selected.")
+            logger.info("No file selected.")
 
     def _drag_and_drop_dialog(self, event):
         """
@@ -127,10 +128,10 @@ class TinkerFileSelector(pn.viewable.Viewer):
         """
         file_path = drag_and_drop_dialog()
         if file_path:
-            print(f"Selected file: {file_path}")
+            logger.info(f"Selected file: {file_path}")
             self._after_path_select(file_path)
         else:
-            print("No file selected.")
+            logger.info("No file selected.")
 
     @catch_and_notify(prefix="<b>Open file: </b>")
     def _after_path_select(self, file_path: str):

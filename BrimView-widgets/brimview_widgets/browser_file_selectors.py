@@ -3,6 +3,7 @@ import param
 from enum import Enum
 from panel.widgets.base import WidgetBase
 from .utils import catch_and_notify
+from .logging import logger
 
 class JsPyMessage(str, Enum):
     """
@@ -99,7 +100,7 @@ class CustomJSFileInput(WidgetBase):
         self.apply_jscallback()
 
     def apply_jscallback(self):
-        print("Updating callback of the panel button")
+        logger.info("Updating callback of the panel button")
         self._panel_button.jscallback(
             clicks=f"""
             console.log("test") ;
@@ -128,7 +129,7 @@ class CustomJSFileInput(WidgetBase):
         """
         global bls_file
         bls_file = value
-        print("Set global bls_file")
+        logger.debug("Set global bls_file")
 
     @classmethod
     @catch_and_notify(prefix="<b>[CustomJSFileinput.get_global_bls]:</b>")
@@ -143,7 +144,7 @@ class CustomJSFileInput(WidgetBase):
         if "bls_file" not in globals():
             raise ValueError("Something went wrong with loading the file!")
         bls_file = globals()["bls_file"]
-        print("Got global bls_file")
+        logger.debug("Got global bls_file")
         return bls_file
 
 
@@ -151,26 +152,26 @@ class CustomJSFileInput(WidgetBase):
     @catch_and_notify(prefix="<b>[CustomJSFileinput._process_js_msg]:</b>")
     def _process_js_msg(self):
         if self.value == "":
-            print("No message to process")
+            logger.info("No message to process")
             return
         
         msg = self.value
         self.value = ""  # resets the value so JS can send a new message
 
-        print(f"[python] handle msg ! {msg}")
+        logger.debug(f"[python] handle msg ! {msg}")
         if msg[JsPyMessage.TYPE.value] == JsPyMessage.FILE_LOADED.value:
-            print("file loaded !")
+            logger.debug("file loaded !")
             # the file was successfully loaded!
             if "bls_file" not in globals():
-                print(globals().keys())
+                logger.debug(globals().keys())
                 raise ValueError("Something went wrong with loading the file!")
             bls_file = globals()["bls_file"]
             if self.update_function is not None:
-                print("Calling update function")
+                logger.debug("Calling update function")
                 self.update_function(bls_file)
 
         elif msg[JsPyMessage.TYPE.value] == JsPyMessage.DUMMY.value:
-            print("Received a mock message from js/frontend")
+            logger.debug("Received a mock message from js/frontend")
 
         elif msg[JsPyMessage.TYPE.value] == JsPyMessage.ERROR.value:
             error_details = (

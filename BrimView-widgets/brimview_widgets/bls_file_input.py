@@ -13,6 +13,7 @@ from panel.custom import PyComponent
 
 from .utils import catch_and_notify, is_running_from_docker
 from .widgets import HorizontalEditableIntSlider
+from .logging import logger
 
 
 class BlsFileInput(WidgetBase, PyComponent):
@@ -88,12 +89,12 @@ class BlsFileInput(WidgetBase, PyComponent):
         """
         with param.parameterized.batch_call_watchers(self.spinner):
             if self.loading:
-                print("Setting loading spinner to true")
+                logger.debug("Setting loading spinner to true")
                 self.spinner.value = True
                 self.spinner.name = "Loading..."
                 self.spinner.visible = True
             else:
-                print("Setting loading spinner to false")
+                logger.debug("Setting loading spinner to false")
                 self.spinner.value = False
                 self.spinner.name = "Idle"
                 self.spinner.visible = True
@@ -139,7 +140,7 @@ class BlsFileInput(WidgetBase, PyComponent):
             # Making sure the spinner is turned off
             self.loading = False
 
-        print(f"New BLS file created: {self.bls_file}")
+        logger.info(f"New BLS file created: {self.bls_file}")
 
     @param.depends("local_file", watch=True)
     @catch_and_notify(prefix="<b>Open file: </b>")
@@ -147,22 +148,22 @@ class BlsFileInput(WidgetBase, PyComponent):
         if self.local_file is None:
             return
 
-        # print(self.local_file)
+        # logger.debug(self.local_file)
         for key, value in self.local_file.items():
-            print(key)
+            logger.debug(key)
             filename = key
             file_bytes = value
         # Create the full path in the system's temp directory
         tmp_dir = tempfile.gettempdir()
         file_path = os.path.join(tmp_dir, filename)
-        print(file_path)
+        logger.debug(file_path)
         # Save the uploaded file content to the temporary file
         with open(file_path, "wb") as f:
             f.write(file_bytes)
 
         # Now load the file using your custom BLS loader
         self.bls_file = bls.File(file_path, mode=self._file_open_mode())
-        print(f"Loaded file: {file_path}")
+        logger.info(f"Loaded file: {file_path}")
 
     def _file_open_mode(self):
         if self.write_allowed:
@@ -174,16 +175,16 @@ class BlsFileInput(WidgetBase, PyComponent):
     @param.depends("debug", watch=True)
     @catch_and_notify(prefix="<b>Open file: </b>")
     def _load_file(self):
-        print("Loading file")
+        logger.info("Loading file")
         if self.debug:
-            print("Debug mode is on")
+            logger.info("Debug mode is on")
             # Load the example HDF5 file
             self.bls_file = bls.File(
                 "./bls_examples/test.bls.zip", mode=self._file_open_mode()
             )
         else:
             if self.local_file is None:
-                print("No file loaded")
+                logger.info("No file loaded")
                 self.bls_file = None
                 return
 
@@ -193,7 +194,7 @@ class BlsFileInput(WidgetBase, PyComponent):
                 # file_bytes = value
 
             if filename is None:
-                print("No file is currently loaded")
+                logger.info("No file is currently loaded")
                 self.bls_file = None
                 return
 
@@ -210,7 +211,7 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data_group = None
 
         else:
-            print("Parsing bls_file")
+            logger.info("Parsing bls_file")
             self.datagroup_selector_widget.disabled = False
             self.data_group_index_widget.disabled = False
 
@@ -226,7 +227,7 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data_group_index_widget.end = len(cleaned_data_group_list) - 1
             self.data_group_index_widget.start = 0
 
-            print(f"Data groups: {cleaned_data_group_list.values()}")
+            logger.debug(f"Data groups: {cleaned_data_group_list.values()}")
             self.data_group = list(cleaned_data_group_list.values())[0]
 
             if len(cleaned_data_group_list) == 1:  # small GUI bonus
@@ -236,10 +237,10 @@ class BlsFileInput(WidgetBase, PyComponent):
     @param.depends("data_group", watch=True)
     @catch_and_notify(prefix="<b>Update data: </b>")
     def _update_data(self):
-        print("_update_data")
+        logger.debug("_update_data")
         if self.bls_file is not None and self.data_group is not None:
             self.data = self.bls_file.get_data(self.data_group)
-            print("Data loaded:", self.data.get_name())
+            logger.info(f"Data loaded: {self.data.get_name()}")
         else:
             self.data = None
 
@@ -248,7 +249,7 @@ class BlsFileInput(WidgetBase, PyComponent):
     def _update_parameters(self):
         if self.data is not None:
             (parameters, names) = self.data.get_parameters()
-            print(parameters)
+            logger.debug(parameters)
             self.param.data_parameter.objects = {"Placeholder": "Parameter 1"}
             # TODO: make this cleaner once the get_parmeters is working
             if parameters is not None:

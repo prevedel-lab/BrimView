@@ -3,6 +3,8 @@ import traceback
 import asyncio
 from functools import wraps
 
+from .logging import logger
+
 import sys
 
 def only_on_change(*param_names):
@@ -52,10 +54,10 @@ def only_on_change(*param_names):
 
             if not changed:
                 if hasattr(self, result_attr):
-                    print(f"[{func.__name__}] Skipping (no change), but returning previous value.")
+                    logger.debug(f"[{func.__name__}] Skipping (no change), but returning previous value.")
                     return getattr(self, result_attr)
                 else:
-                    print(f"[{func.__name__}] Skipping (no change), but no previous return value yet.")
+                    logger.debug(f"[{func.__name__}] Skipping (no change), but no previous return value yet.")
                     return None
 
             # Update cache with current values

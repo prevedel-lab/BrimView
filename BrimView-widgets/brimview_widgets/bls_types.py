@@ -1,6 +1,8 @@
 import param
 import brimfile as bls
 
+from .logging import logger
+
 class bls_param(param.Parameterized):
     file = param.ClassSelector(class_=bls.File, default=None, allow_None=True, allow_refs=True)
     data = param.ClassSelector(class_=bls.Data, default=None, allow_None=True, allow_refs=True)
@@ -15,7 +17,7 @@ class bls_param(param.Parameterized):
         self.analysis: bls.Data.AnalysisResults
     
     def reset(self):
-        print("Resetting bls_input")
+        logger.info("Resetting bls_input")
         with param.parameterized.batch_call_watchers(self):
             self.file = None
             self.data = None

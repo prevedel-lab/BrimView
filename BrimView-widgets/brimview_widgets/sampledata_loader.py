@@ -1,6 +1,7 @@
 import panel as pn
 
 from .utils import catch_and_notify, is_running_from_docker
+from .logging import logger
 
 class SampledataLoader(pn.viewable.Viewer):
 
@@ -11,7 +12,7 @@ class SampledataLoader(pn.viewable.Viewer):
         "Oil beads - FTBM": "https://storage.googleapis.com/brim-example-files/oil_beads_FTBM.brim.zarr"
     }
     if is_running_from_docker():
-        print("Loading sample data from EMBL S3 bucket")
+        logger.info("Loading sample data from EMBL S3 bucket")
         _sampledata = {
         "Drosophila - LSBM": "https://s3.embl.de/brim-example-files/drosophila_LSBM.brim.zarr",
         "Zebrafish eye - confocal": "https://s3.embl.de/brim-example-files/zebrafish_eye_confocal.brim.zarr",
@@ -36,10 +37,10 @@ class SampledataLoader(pn.viewable.Viewer):
     def _load_s3_file(self, event):
         s3_path = self._sampledata[self.s3_link.value]
         if s3_path:
-            print(f"Selected file: {s3_path}")
+            logger.info(f"Selected file: {s3_path}")
             self._after_path_select(s3_path)
         else:
-            print("No file selected.")
+            logger.info("No file selected.")
     
     @catch_and_notify(prefix="<b>Open file: </b>")
     def _after_path_select(self, file_path: str):

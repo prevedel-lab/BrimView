@@ -11,6 +11,7 @@ from HDF5_BLS_treat import treat as bls_treat
 import scipy.optimize
 
 from .utils import catch_and_notify
+from .logging import logger
 
 from .progress_widget import ProgressWidget
 from .bls_file_input import BlsFileInput
@@ -48,7 +49,7 @@ class BrillouinPeaks(pn.viewable.Viewer):
 
     def _manual_param_trigger(self, event):
         self.param.trigger("peaks")
-        # print(f"Peak '{event.obj}' param '{event.name}' changed to {event.new}")
+        # logger.debug(f"Peak '{event.obj}' param '{event.name}' changed to {event.new}")
 
     def add_peak(self, event, **params):
         """
@@ -59,7 +60,7 @@ class BrillouinPeaks(pn.viewable.Viewer):
         peak = BrillouinPeakEstimate(name=f"Peak {n_peaks + 1}", **params)
         self.peaks.append(peak)
         self._watch_peak_params(peak)
-        print(self.peaks)
+        logger.debug(self.peaks)
         self.tabs.append((peak.name, peak))
         self._manual_param_trigger(None)  # Trigger the peaks parameter change
 
@@ -84,7 +85,7 @@ class BrillouinPeaks(pn.viewable.Viewer):
                 self.tabs.active = len(self.tabs.objects) - 1
             # self.tabs.active = len(self.tabs) - 1  # Set the last tab as active
         else:
-            print("Cannot remove the last peak.")
+            logger.info("Cannot remove the last peak.")
 
     def _unwatch_peak_params(self, peak):
         watchers = self._peak_watchers.pop(peak, [])
@@ -182,7 +183,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
         """
         Handle button click event to process data.
         """
-        print("Button clicked!")
+        logger.debug("Button clicked!")
         pn.state.execute(self.process_and_save_treatment)
 
     @catch_and_notify(prefix="<b>_process_and_save_treatment</b> - ")
@@ -244,7 +245,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
                 )
 
             # Defining the model for fitting the peaks
-            print(self.bls_options.model_fit)
+            logger.debug(self.bls_options.model_fit)
             self.bls_treat.define_model(
                 model=self.bls_options.model_fit, elastic_correction=False
             )  # You can also try with "Lorentzian" model and add elastic corrections by setting the parameter to True for both lineshapes.
@@ -276,9 +277,9 @@ class BlsDoTreatment(pn.viewable.Viewer):
             tf = time.time() - t0
             self.progress_widget.finish()
 
-            print(f"shift: {self.bls_treat.shift.shape}")
-            print(f"amplitude: {self.bls_treat.amplitude.shape}")
-            print(f"linewidth: {self.bls_treat.linewidth}")
+            logger.debug(f"shift: {self.bls_treat.shift.shape}")
+            logger.debug(f"amplitude: {self.bls_treat.amplitude.shape}")
+            logger.debug(f"linewidth: {self.bls_treat.linewidth}")
 
             # Combining the two fitted peaks together here weighing the result on the standard deviation of the shift
             # self.bls_treat.combine_results_FSR(
@@ -288,10 +289,10 @@ class BlsDoTreatment(pn.viewable.Viewer):
             #    shift_std_weight=True,
             # )
 
-            print(f"Time for fitting all spectra: {tf:.2f} s")
+            logger.info(f"Time for fitting all spectra: {tf:.2f} s")
 
-            print(self.bls_treat.shift)
-            print(
+            logger.debug(self.bls_treat.shift)
+            logger.info(
                 f"Average time for a single spectrum: {1e3*tf/np.prod(len(self.bls_treat.shift)):.2f} ms"
             )
     
@@ -300,7 +301,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
         # So we also need to store the results in the class
 
         # TODO: this is still blocking the UI for some reason
-        print(self.bls_data.get_num_parameters())
+        logger.debug(self.bls_data.get_num_parameters())
         i = 0
         self.AS_shift = []
         self.S_shift = []
@@ -323,12 +324,12 @@ class BlsDoTreatment(pn.viewable.Viewer):
         self.n_spectra = n_test_spectra
         # self.n_spectra = PSD.shape[0]
         self.processing_spectra = 0
-        print(PSD.shape, frequency.shape)
+        logger.debug(f"PSD.shape: {PSD.shape}, frequency.shape: {frequency.shape}")
         for i in range(0, self.n_spectra):
             # Let's release the thread so that the UI can update
             # in the proper version, we would do this every x iterations
             await asyncio.sleep(0.01)  # Yield control to the event loop
-            # print(f"Processing spectrum {i}")
+            # logger.info(f"Processing spectrum {i}")
             self.processing_spectra = i
             start_time = time.perf_counter()
 
@@ -356,7 +357,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
 
             (AS_popt, AS_pcov) = scipy.optimize.curve_fit(real_lorentzian, AS_x, AS_y)
             (S_popt, S_pcov) = scipy.optimize.curve_fit(real_lorentzian, S_x, S_y)
-            print(AS_popt)
+            logger.debug(AS_popt)
             # TODO later: actual fit and process the data
             self.AS_shift[i] = AS_popt[0]
             self.AS_width[i] = AS_popt[1]
@@ -366,16 +367,16 @@ class BlsDoTreatment(pn.viewable.Viewer):
             self.S_Amplitude[i] = S_popt[2]
             end_time = time.perf_counter()
             duration = end_time - start_time
-            print(f"Async iteration {i} took {duration:.6f} seconds")
+            logger.info(f"Async iteration {i} took {duration:.6f} seconds")
         self.data_processed = True
 
     @catch_and_notify(prefix="<b>Save treatment: </b>")
     async def _save_bls_treatment(self):
         if self.bls_treat is None:
             raise ValueError("No BLS treatment available.")
-        print(f"shift: {self.bls_treat.shift.shape}")
-        print(f"amplitude: {self.bls_treat.amplitude.shape}")
-        print(f"linewidth: {self.bls_treat.linewidth.shape}")
+        logger.debug(f"shift: {self.bls_treat.shift.shape}")
+        logger.debug(f"amplitude: {self.bls_treat.amplitude.shape}")
+        logger.debug(f"linewidth: {self.bls_treat.linewidth.shape}")
 
         fitted_peaks = []
 
@@ -414,7 +415,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
                 name="test1_analysis",
             )
         else:
-            print("More than 2 peaks fitted, unsure how to save that")
+            logger.warning("More than 2 peaks fitted, unsure how to save that")
         self.bls_reload_file()
 
     @catch_and_notify(prefix="<b>Save treatment: </b>")
@@ -425,9 +426,9 @@ class BlsDoTreatment(pn.viewable.Viewer):
         """
         if self.bls_data is None:
             raise ValueError("No BLS data available for treatment.")
-        print(np.max(self.AS_shift), np.min(self.AS_shift))
-        print(self.AS_shift.shape)
-        print(self.S_shift.shape)
+        logger.debug(f"max AS shift: {np.max(self.AS_shift)}, min AS shift: {np.min(self.AS_shift)}")
+        logger.debug(self.AS_shift.shape)
+        logger.debug(self.S_shift.shape)
         # Example treatment: Normalize the data
         ar = self.bls_data.create_analysis_results_group_raw(
             (
@@ -453,11 +454,11 @@ class BlsDoTreatment(pn.viewable.Viewer):
             name="test1_analysis",
         )
         self.bls_reload_file()
-        print(ar)
+        logger.debug(ar)
         # self.bls_data.data = (
         #    self.bls_data.data - np.mean(self.bls_data.data)
         # ) / np.std(self.bls_data.data)
-        print("Treatment applied to BLS data.")
+        logger.info("Treatment applied to BLS data.")
 
     @param.depends("bls_data", watch=True)
     def _update_widget(self):
@@ -470,14 +471,14 @@ class BlsDoTreatment(pn.viewable.Viewer):
             (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
             self.mean_spectra_n_samples.end = PSD.shape[0]
             self.mean_spectra_n_samples.start = 1
-            print(PSD.shape)
+            logger.debug(PSD.shape)
 
     def compute_mean_spectra(self, event):
         (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
         frequency = np.broadcast_to(frequency, PSD.shape)
 
-        print(f"PSD shape : {PSD.shape}")
-        print(f"freq shape : {frequency.shape}")
+        logger.debug(f"PSD shape : {PSD.shape}")
+        logger.debug(f"freq shape : {frequency.shape}")
 
         # generate average PSD - last dimension is the frequency
         n_data_points = PSD.shape[1]
@@ -540,9 +541,9 @@ class BlsDoTreatment(pn.viewable.Viewer):
             frequency_units,
             PSD_units,
         ) = self.mean_spectra
-        print(self.mean_spectra)
+        logger.debug(self.mean_spectra)
         if common_freq is None and mean_spectrum is None:
-            print("Curve is None !")
+            logger.error("Curve is None !")
             plot = peak_spans
 
         else:

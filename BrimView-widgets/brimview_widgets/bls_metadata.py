@@ -10,6 +10,7 @@ import brimfile as bls
 from .bls_file_input import BlsFileInput
 
 from .utils import catch_and_notify
+from .logging import logger
 
 class BlsMetadata(WidgetBase, PyComponent):
     """
@@ -28,7 +29,7 @@ class BlsMetadata(WidgetBase, PyComponent):
         self.title = pn.pane.Markdown("## Metadata of the file \n Please load a file")
         super().__init__(**params)
         
-        print("BlsMetadata initialized")
+        logger.info("BlsMetadata initialized")
 
         # Explicit annotation, because param and type hinting is not working properly
         self.value: bls.Data
@@ -36,7 +37,7 @@ class BlsMetadata(WidgetBase, PyComponent):
     @param.depends("value", watch=True)
     @catch_and_notify(prefix="<b>Update metadata: </b>")
     def _update_tabulator(self):
-        print("Updating metadata tabulator")
+        logger.info("Updating metadata tabulator")
         if self.value is None:
             self.title.object = "## Metadata of the file \n Please load a file"
             self.tabulator.value = None

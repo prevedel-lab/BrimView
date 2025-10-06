@@ -18,6 +18,7 @@ from .models import BlsProcessingModels, MultiPeakModel
 from .bls_data_visualizer import BlsDataVisualizer
 
 from .utils import catch_and_notify, safe_get
+from .logging import logger
 
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
@@ -141,7 +142,7 @@ class FitParam(pn.viewable.Viewer):
         self.process: bool
 
     def _update_model_widget(self):
-        print(self.param.model.objects)
+        logger.debug(self.param.model.objects)
         if len(self.param.model.objects) == 1:
             self._model_dropdown.disabled = True
             self._model_dropdown.description = self.param.model.doc
@@ -151,7 +152,7 @@ class FitParam(pn.viewable.Viewer):
 
     @pn.depends("_table.value")
     def _test_table_update(self):
-        print("table")
+        logger.debug("table")
 
     def _reset_fitted_parameters(self, _event):
         self.fitted_parameters = None
@@ -422,7 +423,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         card._header_layout.styles = {"width": "inherit"}
 
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
-        print(f"Computing fitted curves at ({time.time()})")
+        logger.info(f"Computing fitted curves at ({time.time()})")
         fits = self._compute_fitted_curves(x_range, z, y, x)
         curves = []
         for fit in fits:
@@ -439,7 +440,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         if self.auto_refit.process is False:
             return []
 
-        print("Re-fitting curves...")
+        logger.info("Re-fitting curves...")
         # Creating the multipeak model function
         n_peaks = len(self.value.analysis.list_existing_peak_types())
         multi_peak_model = MultiPeakModel(
@@ -483,7 +484,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             previous_fits[f"gamma{i}"] = width
             i += 1
 
-        print(f"[TRACE] saved fit: {previous_fits}")
+        logger.info(f"[TRACE] saved fit: {previous_fits}")
 
         # If possible, we use existing/previous information for the fit
         # This allows for GUI interaction
@@ -524,7 +525,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         try:
             # perform fit
-            print(
+            logger.info(
                 "[TRACE] scipy.curve_fit called with: \n"
                 + f"p0 = {p0} \n"
                 + f"lower bounds = {lower_bounds} \n"
@@ -587,7 +588,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     def retrieve_point_rawdata(self):
         self.loading = True
         now = time.time()
-        print(f"retrieve_point_rawdata at {now:.4f} seconds")
+        logger.info(f"retrieve_point_rawdata at {now:.4f} seconds")
 
         (z, y, x) = self.get_coordinates()
         if self.value is not None and self.value.data is not None:
@@ -621,7 +622,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         # self.loading = False
         now = time.time()
-        print(f"retrieve_point_rawdata at {now:.4f} seconds [done]")
+        logger.info(f"retrieve_point_rawdata at {now:.4f} seconds [done]")
         self.loading = False
 
     # TODO watch=true for side effect ?
@@ -646,7 +647,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         self.loading = True
         now = time.time()
-        print(f"plot_spectrum at {now:.4f} seconds")
+        logger.info(f"plot_spectrum at {now:.4f} seconds")
         (z, y, x) = self.get_coordinates()
         # Generate a fake spectrum for demonstration purposes
         curves = []
@@ -677,10 +678,10 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
                 pn.state.notifications.warning(f"<b>Auto-refit: </b> {e}")
 
         else:
-            print("Warning: No BLS data available. Cannot plot spectrum.")
+            logger.warning("No BLS data available. Cannot plot spectrum.")
             # If no data is available, we create empty values
             (PSD, frequency, PSD_units, frequency_units) = ([], [], "", "")
-        print(f"Retrieving spectrum took {time.time() - now:.4f} seconds")
+        logger.info(f"Retrieving spectrum took {time.time() - now:.4f} seconds")
         # Get and plot raw spectrum
         h = [
             hv.Points(
@@ -699,7 +700,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
         h.extend(curves)
 
-        print(f"Creating holoview object took {time.time() - now:.4f} seconds")
+        logger.info(f"Creating holoview object took {time.time() - now:.4f} seconds")
         self.loading = False
 
         return hv.Overlay(h).opts(

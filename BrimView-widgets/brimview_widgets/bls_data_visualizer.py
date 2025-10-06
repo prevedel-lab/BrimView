@@ -7,6 +7,8 @@ from holoviews import streams
 import numpy as np
 import xarray as xr
 
+from .logging import logger
+
 import brimfile as bls
 from .bls_file_input import BlsFileInput
 from .utils import only_on_change, catch_and_notify
@@ -32,7 +34,7 @@ def get_linear_colormaps() -> dict:
     cmap_list = cc.all_original_names(only_aliased=True, not_group="glasbey")
     cmap_name_list = [cc.get_aliases(cmap).split(", ")[0] for cmap in cmap_list]
     cmap_dict = {cmap_name: cc.palette_n[cmap_name] for cmap_name in cmap_name_list}
-    # print(cmap_dict)
+    # logger.debug(cmap_dict)
     return cmap_dict
 
 
@@ -143,7 +145,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         #     (range(512), range(512), range(1), np.zeros((1, 512, 512))),
         #     ['x', 'y', 'z'], "value"
         # )
-        print(f"Dataset from init {self.img_dataset}")
+        logger.debug(f"Dataset from init {self.img_dataset}")
         self.plot = hv.Image([])
         self.histogram = hv.Histogram([])
 
@@ -334,11 +336,11 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
                 bls.Metadata.Item(1, "px"),
                 bls.Metadata.Item(1, "px"),
             )
-        print(img_data.shape)
+        logger.debug(img_data.shape)
         (z, y, x) = img_data.shape
-        print(self.z_px)
-        print(self.y_px)
-        print(self.x_px)
+        logger.debug(self.z_px)
+        logger.debug(self.y_px)
+        logger.debug(self.x_px)
 
         # We want a Xarray backed dataset
         xr_data = xr.DataArray(
@@ -410,7 +412,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             self.img_axis_3_slice_widget.disabled = False
         else:
             self.img_axis_3_slice_widget.disabled = True
-        print(
+        logger.info(
             f"Updating img_axis_3_slice with {self.slices} - value {self.img_axis_3_slice}"
         )
 
@@ -472,7 +474,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         If this appears to be to slow/expensive, we could try to replace this by some streams.pipe
         We don't really have a stream of data, so we don't really need streams.pipe.
         """
-        print("_plot_data")
+        logger.debug("_plot_data")
         frame = self._get_datasetslice()
         img = hv.Image(frame)
 
@@ -515,7 +517,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         This function takes the (x,y) coordinate from a click on the displayed picture,
         and converts it back into the (z,y,z) coordinates of the dataset
         """
-        print(f"Clicked {time.time()}")
+        logger.debug(f"Clicked {time.time()}")
 
         # Getting (z, y, x) in the choosen coordinate system (either px or real_units)
         horizontal_coord = x
@@ -571,7 +573,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             unit = f"(z={z} {self.z_px.units}, y={y} {self.y_px.units}, x={x} {self.x_px.units})"
             index = f"(z={ self.dataset_zyx_click[0]}, y={ self.dataset_zyx_click[1]}, x={self.dataset_zyx_click[2]})"
             user_msg = f"Clicked on pixel: <br/> 🌍: {unit} <br/> 🔢: {index}"
-            print(user_msg)
+            logger.info(user_msg)
             pn.state.notifications.info(user_msg)
 
         pn.state.add_periodic_callback(_panel_update, period=200, count=1)
@@ -656,21 +658,21 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         import os
 
         if self.bls_data is None or self.bls_analysis is None:
-            print("No data loaded, cannot download tiff")
+            logger.error("No data loaded, cannot download tiff")
             return
-        print("TODO - download as tiff")
+        logger.info("TODO - download as tiff")
 
         # temp fix: filename retuns the full path of the file
         bls_file_name = os.path.basename(self.bls_file.filename)
         filename = f"{bls_file_name}_{self.bls_data.get_name()}_{self.bls_analysis.get_name()}_{self.result_peak.name}.ome.tif"
         tmpdir = tempfile.mkdtemp()
         file_path = os.path.join(tmpdir, filename)
-        print(f"Saving tiff to {file_path}")
+        logger.info(f"Saving tiff to {file_path}")
         path = self.bls_analysis.save_image_to_OMETiff(
             self.result_quantity, self.result_peak, index=0, filename=file_path
         )
 
-        print(f"Saved tiff to {path}")
+        logger.info(f"Saved tiff to {path}")
         self.result_download.filename = filename
         return file_path
 
