@@ -73,7 +73,6 @@ data_protection = pn.Row(
         ),
         hide_header=True,
         title="Data protection",
-        styles={"background": "White"},
         sizing_mode="stretch_width",
         collapsible=False,
     )
@@ -94,7 +93,6 @@ credits = pn.Row(
         brimview_widgets.DebugReport(),
         hide_header=True,
         title="Credits",
-        styles={"background": "White"},
         sizing_mode="stretch_width",
         collapsible=False,
     )
