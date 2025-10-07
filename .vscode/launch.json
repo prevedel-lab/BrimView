@@ -11,7 +11,8 @@
             "module": "panel",
             "args": [
                 "serve",
-                "${workspaceFolder}/src/index.py"
+                "${workspaceFolder}/src/index.py",
+                "--admin"
             ],
             "console": "integratedTerminal",
             "justMyCode": false
