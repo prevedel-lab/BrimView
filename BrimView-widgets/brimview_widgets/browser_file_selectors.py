@@ -2,7 +2,7 @@ import panel as pn
 import param
 from enum import Enum
 from panel.widgets.base import WidgetBase
-from .utils import catch_and_notify
+from .utils import catch_and_notify, running_from_pyodide
 from .logging import logger
 
 class JsPyMessage(str, Enum):
@@ -108,7 +108,7 @@ class CustomJSFileInput(WidgetBase):
              console.log(file_input) ;
             
              file_input.addEventListener("change", async (event) => {{
-                 { self._pyodide_fileinput_callback if pn.state._is_pyodide else self._fileinput_callback }
+                 { self._pyodide_fileinput_callback if running_from_pyodide else self._fileinput_callback }
              }}, 
              {{ once: true }});
 

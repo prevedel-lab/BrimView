@@ -9,6 +9,7 @@ import tifffile  # Force import of tifffile
 import brimfile as bls  # Force import of brimfile
 import brimview_widgets
 from brimview_widgets.logging import logger
+from brimview_widgets.utils import running_from_pyodide
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
 __version__ = "0.2.2"
@@ -44,7 +45,7 @@ def parse_query_params(file_widget: brimview_widgets.TinkerFileSelector):
     Important: this function should be called only after all the widgets are loaded
     """
     query_params = pn.state.location.query_params
-    if 'S3_loc' in query_params and not "pyodide" in sys.modules:
+    if 'S3_loc' in query_params and not running_from_pyodide:
         # TODO make it work also in Pyodide
         assert isinstance(file_widget, brimview_widgets.TinkerFileSelector)
         file_widget.input_and_load_s3_file(query_params['S3_loc'])
@@ -119,7 +120,7 @@ layout = pn.template.FastListTemplate(
 
 layout.main.append(main_tabs)
 
-if pn.state._is_pyodide:
+if running_from_pyodide:
     # This apparently needs to be loaded here to work nicely
     custom_file_loader = brimview_widgets.CustomJSFileInput()
     sidebar.append(custom_file_loader)
@@ -135,7 +136,7 @@ def build_ui():
         )
 
     logger.info("Building UI")
-    if "pyodide" in sys.modules:  # We're in the Pyodide case
+    if running_from_pyodide:  # We're in the Pyodide case
         # Creating the file input widget
 
         FileSelector = brimview_widgets.BlsFileInput()

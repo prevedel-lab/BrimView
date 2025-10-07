@@ -9,9 +9,10 @@ from .s3file_selector import S3FileSelector
 from . sampledata_loader import SampledataLoader
 from .bls_metadata import BlsMetadata
 from .debug_report_widget import DebugReport
+from .utils import running_from_pyodide
 
 # Keep treatment widget out of the wasm package
-if "pyodide" in sys.modules:
+if running_from_pyodide:
     from .browser_file_selectors import CustomJSFileInput
     pass #JSFileInput needs to be in the main python file, not in the widgets package
 else:

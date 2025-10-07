@@ -7,6 +7,8 @@ from .logging import logger
 
 import sys
 
+running_from_pyodide = ("pyodide" in sys.modules)
+
 def only_on_change(*param_names):
     """
     Decorator to avoid re-running a @param.depends-rendered method unless specific parameters have changed.

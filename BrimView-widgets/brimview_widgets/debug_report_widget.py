@@ -6,6 +6,8 @@ import brimview_widgets
 import sys
 import importlib.metadata
 
+from .utils import running_from_pyodide
+
 from urllib.parse import urljoin
 
 def get_url():
@@ -28,7 +30,7 @@ def python_version() -> str:
 
 def bls_versions() -> str:
     s = ""
-    s += f"is_pyodide: {pn.state._is_pyodide}\n"
+    s += f"is_pyodide: {running_from_pyodide}\n"
     s += f"brimfile: {bls.__version__}\n"
     s += f"brimview_widgets: {brimview_widgets.__version__}\n"
     s += f"HDF5_BLS_treat: {bls_processing.Treat_version}"
