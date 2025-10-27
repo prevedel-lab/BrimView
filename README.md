@@ -9,14 +9,17 @@ For images (and volumes and timelapses), we propose a Zarr-based standarized fil
 
 **BrimView** is an open-source tool that can read, display, explore and (re)analyze these brim files. 
 
-# Try it for yourself !
+# Try it for yourself!
 
-Test the online version by clicking [here](https://biobrillouin.org/brimview/ ) (hosted by BioBrillouin). 4 different dataset, from different Brillouin acquisition methods, are available on public S3-buckets.
-> _Currently, you need to use a Chromium based browser to be able to run this version_
+Test the online version by clicking [here](https://biobrillouin.org/brimview/ ). 4 different dataset, from different Brillouin acquisition methods, are available on public S3-buckets.
 
 ![BrimView screenshot](./screenshot.png)
 
 Use the sidebar to load some data, and then explore the different timepoints of the acquired volumes. Clicking on a pixel displays the underlaying acquired spectra.
+
+# Learn more about it
+
+If you want to get more information about this project, you can read [our recent prepint](https://arxiv.org/abs/2509.07566). 
 
 # One codebase, multiple deployments options
 
