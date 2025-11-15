@@ -15,7 +15,7 @@ if running_from_pyodide:
             CRITICAL = 5 
         log_level = LogLevel.INFO
         def _log(self, msg, level: LogLevel): 
-                if level>=self.log_level:
+                if level.value>=self.log_level.value:
                     js.console.log(f"{level.name}: {msg}")
         def debug (self, msg):
             self._log(msg, PyodideLogger.LogLevel.DEBUG) 
