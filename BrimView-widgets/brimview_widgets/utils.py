@@ -1,13 +1,8 @@
 import panel as pn
-import traceback
 import asyncio
 from functools import wraps
 
 from .logging import logger
-
-import sys
-
-running_from_pyodide = ("pyodide" in sys.modules)
 
 def only_on_change(*param_names):
     """
@@ -105,13 +100,6 @@ def catch_and_notify(duration=4000, notification_type="error", prefix=""):
                     return None
             return sync_wrapper
     return decorator
-
-def is_running_from_docker():
-    """
-        Check if the current panel application is running from a docker image
-    """
-    # Check if panel serve was passed 'from-docker' as one of the --args
-    return 'from-docker' in sys.argv
 
 def safe_get(container, *keys, default=None):
     """

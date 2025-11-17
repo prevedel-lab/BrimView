@@ -2,7 +2,8 @@ import panel as pn
 import param
 from enum import Enum
 from panel.widgets.base import WidgetBase
-from .utils import catch_and_notify, running_from_pyodide
+from .utils import catch_and_notify
+from .environment import running_from_pyodide
 from .logging import logger
 
 class JsPyMessage(str, Enum):

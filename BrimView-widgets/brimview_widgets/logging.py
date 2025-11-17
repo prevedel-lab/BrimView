@@ -1,7 +1,7 @@
 # Wether to use the panel logger, whose output is shown in the admin panel 
 _use_panel_logger = False
 
-from .utils import running_from_pyodide
+from .environment import running_from_pyodide
 
 if running_from_pyodide:
     import js

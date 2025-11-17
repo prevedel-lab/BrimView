@@ -6,7 +6,7 @@ import brimview_widgets
 import sys
 import importlib.metadata
 
-from .utils import running_from_pyodide
+from .environment import running_from_pyodide
 
 from urllib.parse import urljoin
 

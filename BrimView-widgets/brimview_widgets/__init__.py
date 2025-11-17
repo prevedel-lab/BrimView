@@ -9,7 +9,7 @@ from .s3file_selector import S3FileSelector
 from . sampledata_loader import SampledataLoader
 from .bls_metadata import BlsMetadata
 from .debug_report_widget import DebugReport
-from .utils import running_from_pyodide
+from .environment import running_from_pyodide
 
 # Keep treatment widget out of the wasm package
 if running_from_pyodide:

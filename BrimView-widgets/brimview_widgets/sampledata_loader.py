@@ -1,6 +1,7 @@
 import panel as pn
 
-from .utils import catch_and_notify, is_running_from_docker
+from .utils import catch_and_notify
+from .environment import is_running_from_docker
 from .logging import logger
 
 class SampledataLoader(pn.viewable.Viewer):

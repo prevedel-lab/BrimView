@@ -11,7 +11,8 @@ from panel.io import hold
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 
-from .utils import catch_and_notify, is_running_from_docker, running_from_pyodide
+from .utils import catch_and_notify
+from .environment import is_running_from_docker, running_from_pyodide
 from .widgets import HorizontalEditableIntSlider
 from .logging import logger
 

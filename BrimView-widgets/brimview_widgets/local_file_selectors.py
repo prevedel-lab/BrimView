@@ -1,7 +1,7 @@
 import panel as pn
 import param
 
-from .utils import is_running_from_docker
+from .environment import is_running_from_docker
 _running_from_docker = is_running_from_docker()
 
 if not _running_from_docker:
