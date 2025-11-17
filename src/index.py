@@ -42,7 +42,7 @@ def resource_path(relative_path):
         return os_path.join(sys._MEIPASS, relative_path)
     return relative_path  # if not PyInstaller, return the original path
 
-def parse_query_params(file_widget: brimview_widgets.TinkerFileSelector):
+def parse_query_params(file_widget: "brimview_widgets.TinkerFileSelector"):
     """
     Read the query parameters of the URL and takes the appropriate actions.
     Important: this function should be called only after all the widgets are loaded
