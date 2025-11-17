@@ -1,15 +1,18 @@
 import sys
 from os import path as os_path
+
+import brimview_widgets
+from brimview_widgets.logging import logger
+from brimview_widgets.environment import running_from_pyodide
+import brimfile as bls  # Force import of brimfile
+
 import panel as pn
 import holoviews as hv
 import xarray as xr  # Force import of xarray
 import scipy
 import numpy as np  # Force import of numpy
 import tifffile  # Force import of tifffile
-import brimfile as bls  # Force import of brimfile
-import brimview_widgets
-from brimview_widgets.logging import logger
-from brimview_widgets.environment import running_from_pyodide
+
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
 __version__ = "0.2.2"
