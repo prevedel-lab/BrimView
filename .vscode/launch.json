@@ -4,8 +4,9 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
-            "name": "Python Debugger: Current File",
+            "name": "Panel serve",
             "type": "debugpy",
             "request": "launch",
             "module": "panel",
@@ -14,6 +15,14 @@
                 "${workspaceFolder}/src/index.py",
                 "--admin"
             ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false
         }
