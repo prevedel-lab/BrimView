@@ -3,12 +3,11 @@ import mimetypes
 
 class CORSRequestHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
-        #self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
+        # we don't need to set the CORS policies because we don't use anymore SharedArrayBuffer
+        # self.send_header('Access-Control-Allow-Origin', '*')
+        # self.send_header('Cross-Origin-Opener-Policy', 'same-origin')
         # self.send_header('Cross-Origin-Embedder-Policy', 'credentialless')
-        self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
-        # The Cross-Origin-Resource-Policy is set by the server
-        # self.send_header('Cross-Origin-Resource-Policy', 'cross-origin')
+        # self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         super().end_headers()
 
 if __name__ == '__main__':

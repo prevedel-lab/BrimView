@@ -34,9 +34,9 @@ As there are 3 deployment versions of BrimView, it might be a bit overwhelming t
 
 For the pyodide-app to work, we need to have:
 - the .whl for BrimView-widget and Brimfile: run `py ./src/build_deps.py`
-- the converted BrimView app: run `py ./src/build_webapp.py` (currently we only tested it on panel 1.7.5 and later versions don't work)
+- the converted BrimView app: run `py ./src/build_webapp.py` (currently we only tested it on panel 1.8.3 and earlier versions do not work)
 - put all of that into one folder
-- have that folder be served by a web server with some specific CORS-header: `py ./src/run_server.py`
+- have that folder be served by a web server: `py ./src/run_server.py`
 
 Don't hesitate to open the Browser developer tools to look into the Javascript console and the downloaded files to understand why something might not behave as expected.
 
