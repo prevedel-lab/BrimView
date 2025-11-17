@@ -83,7 +83,7 @@ def replace_pyodide_import(js_code, new_version):
 # region === Settings ===
 inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
 overwrite_package_path = [
-    ("brimview_widgets", "js.toAbsoluteUrl('./brimview_widgets-0.3.2-py3-none-any.whl')"),
+    ("brimview_widgets", "js.toAbsoluteUrl('./brimview_widgets-0.3.3-py3-none-any.whl')"),
 ]
 project_file = "./src/index.py"
 src_zarr_file = f"./src/zarr_file.js"
