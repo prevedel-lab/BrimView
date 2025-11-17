@@ -28,11 +28,14 @@ classifiers = [
 ]
 license = "LGPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
-dependencies = [
-  "panel",
-  "brimfile[export-tiff]",
-  "holoviews",
-  "xarray"
+
+# pin to minor versions to prevent unexpected breaking changes
+dependencies = [  
+  "bokeh~=3.7",
+  "holoviews~=1.22",
+  "panel~=1.8",
+  "xarray",
+  "brimfile[export-tiff]"
 ]
 
 [project.optional-dependencies]
