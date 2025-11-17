@@ -4,7 +4,21 @@ import pathlib
 import re
 import shutil
 
+from importlib.metadata import version
+import warnings
+
 # === Helper functions ===
+
+def check_panel_version():
+    panel_version = version("panel")
+    print("Installed Panel version:", panel_version)
+    major, minor, *_ = map(int, panel_version.split("."))
+    if major == 1 and minor>=8:
+        if minor>8:
+            warnings.warn(f"Panel version {panel_version} was not tested, it might not work as expected")
+    else:
+        raise ValueError(f"Panel version {panel_version} is not supported")
+    
 def generate_mock_package_injection(inject_mock_packages):
     lines = ["import micropip"]
     for name, version in inject_mock_packages:
@@ -100,6 +114,9 @@ dst_zarr_file = pathlib.Path(output_dir) / "zarr_file.js"
 use_compiled_flag = True  # Set to True if you want to compile the worker script
 pyodide_version = "0.28.0"  # Specify the desired Pyodide version -- needed for compiled flag
 
+# make sure we are running a supported panel version
+check_panel_version()
+
 # Determine output JS filename from project_file
 worker_script = f"{output_dir}/{pathlib.Path(project_file).with_suffix('.js').name}"
 html_page = f"{output_dir}/{pathlib.Path(project_file).with_suffix('.html').name}"
@@ -147,7 +164,7 @@ print(">> Injecting function call into Worker...")
 pattern = r"(else if \(msg\.type === 'patch'\))"
 match = re.search(pattern, patched_body)
 if not match:
-    raise RuntimeError("❌ Could not find 'else if \(msg\.type === 'patch'\)' block to inject before.")
+    raise RuntimeError(r"❌ Could not find 'else if \(msg\.type === 'patch'\)' block to inject before.")
 # Insert function call before await line
 injected_block = f"{fileinput_clause}\n  {match.group(1)}"
 patched_body = patched_body[:match.start()] + injected_block + patched_body[match.end():]
