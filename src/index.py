@@ -9,7 +9,7 @@ import tifffile  # Force import of tifffile
 import brimfile as bls  # Force import of brimfile
 import brimview_widgets
 from brimview_widgets.logging import logger
-from brimview_widgets.utils import running_from_pyodide
+from brimview_widgets.environment import running_from_pyodide
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
 __version__ = "0.2.2"
@@ -80,7 +80,7 @@ data_protection = pn.Row(
     )
 )
 
-_running_from_docker = brimview_widgets.utils.is_running_from_docker()
+_running_from_docker = brimview_widgets.environment.is_running_from_docker()
 if _running_from_docker:
     data_protection = None
 
