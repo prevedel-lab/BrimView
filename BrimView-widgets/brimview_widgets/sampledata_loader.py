@@ -1,24 +1,25 @@
 import panel as pn
 
 from .utils import catch_and_notify
-from .environment import is_running_from_docker
+from .environment import running_from_pyodide
 from .logging import logger
 
 class SampledataLoader(pn.viewable.Viewer):
 
     _sampledata = {
-        "Drosophila - LSBM": "https://storage.googleapis.com/brim-example-files/drosophila_LSBM.brim.zarr",
-        "Zebrafish eye - confocal": "https://storage.googleapis.com/brim-example-files/zebrafish_eye_confocal.brim.zarr",
-        "Zebrafish ECM - SBS": "https://storage.googleapis.com/brim-example-files/zebrafish_ECM_SBS.brim.zarr",
-        "Oil beads - FTBM": "https://storage.googleapis.com/brim-example-files/oil_beads_FTBM.brim.zarr"
+    "Drosophila - LSBM": "https://s3.embl.de/brim-example-files/drosophila_LSBM.brim.zarr",
+    "Zebrafish eye - confocal": "https://s3.embl.de/brim-example-files/zebrafish_eye_confocal.brim.zarr",
+    "Zebrafish ECM - SBS": "https://s3.embl.de/brim-example-files/zebrafish_ECM_SBS.brim.zarr",
+    "Oil beads - FTBM": "https://s3.embl.de/brim-example-files/oil_beads_FTBM.brim.zarr"
     }
-    if is_running_from_docker():
-        logger.info("Loading sample data from EMBL S3 bucket")
+    
+    if running_from_pyodide:
+        logger.info("Loading sample data from Google cloud")
         _sampledata = {
-        "Drosophila - LSBM": "https://s3.embl.de/brim-example-files/drosophila_LSBM.brim.zarr",
-        "Zebrafish eye - confocal": "https://s3.embl.de/brim-example-files/zebrafish_eye_confocal.brim.zarr",
-        "Zebrafish ECM - SBS": "https://s3.embl.de/brim-example-files/zebrafish_ECM_SBS.brim.zarr",
-        "Oil beads - FTBM": "https://s3.embl.de/brim-example-files/oil_beads_FTBM.brim.zarr"
+            "Drosophila - LSBM": "https://storage.googleapis.com/brim-example-files/drosophila_LSBM.brim.zarr",
+            "Zebrafish eye - confocal": "https://storage.googleapis.com/brim-example-files/zebrafish_eye_confocal.brim.zarr",
+            "Zebrafish ECM - SBS": "https://storage.googleapis.com/brim-example-files/zebrafish_ECM_SBS.brim.zarr",
+            "Oil beads - FTBM": "https://storage.googleapis.com/brim-example-files/oil_beads_FTBM.brim.zarr"
         }
 
     def __init__(self, **params):
