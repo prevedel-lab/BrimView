@@ -31,7 +31,7 @@ license-files = ["LICEN[CS]E*"]
 
 # pin to minor versions to prevent unexpected breaking changes
 dependencies = [  
-  "bokeh~=3.7",
+  "bokeh~=3.8",
   "holoviews~=1.22",
   "panel~=1.8",
   "xarray",
