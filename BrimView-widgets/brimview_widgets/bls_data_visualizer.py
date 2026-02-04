@@ -6,7 +6,6 @@ import holoviews as hv
 from holoviews import streams
 
 from holoviews.selection import link_selections
-from holoviews.operation.datashader import datashade
 from matplotlib.path import Path
 
 import numpy as np
@@ -518,28 +517,32 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
         # testing different streams
         lasso = streams.Lasso(source=img)
-        xvals = self.img_dataset.data.coords[self.img_axis_1].values.tolist()
-        yvals = self.img_dataset.data.coords[self.img_axis_2].values.tolist()
+        x_coords = self.img_dataset.data.coords[self.img_axis_1].values.tolist()
+        y_coords = self.img_dataset.data.coords[self.img_axis_2].values.tolist()
+        lasso.add_subscriber(lambda geometry : self._create_mask_from_lasso(geometry, (x_coords, y_coords)))
 
-        ny = len(yvals)
-        nx = len(xvals)
-        lasso.add_subscriber(lambda geometry : self._test_lasso(geometry, (ny, nx)))
-        
-        select = streams.Selection1D(source=img)
-        select.add_subscriber(self._test_select)
-        #ls = link_selections.instance()
-        #return ls(datashade(img))
-
+        reset_stream = streams.PlotReset(source=img)
+        reset_stream.add_subscriber(self._reset_mask)
         return img
     
-    def _test_select(self, index):
-        print("hi from select")
-        print(index)
 
+    def _reset_mask(self, resetting=True):
+        """
+        Reset the selection mask to None.
 
-    def _test_lasso(self, geometry, mask_shape):
+        Parameters
+        ----------
+        resetting : bool
+            Indicates if the reset is triggered by a user action.
+            Needed to match the signature of the PlotReset stream.
+            Not actually used.
+        """
+        logger.debug("Resetting selection mask")
+        self.mask = None
 
-        def lasso_to_mask(lasso_xy, shape):
+    def _create_mask_from_lasso(self, geometry, mask_shape):
+
+        def lasso_to_mask(lasso_xy, coordinates_xy):
             """
             Convert a lasso polygon into a boolean pixel mask.
 
@@ -547,23 +550,19 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             ----------
             lasso_xy : (N, 2) array
                 Polygon vertices in (x, y) data coordinates
-            shape : tuple
-                (ny, nx) shape of the image
+            coordinates_xy : tuple
+                (x_coords, y_coords) coordinates of the image
 
             Returns
             -------
             mask : (ny, nx) bool array
                 True for pixels inside the lasso
             """
-            print(shape)
-            ny, nx = shape
+            nx, ny = (len(coordinates_xy[0]), len(coordinates_xy[1]))
 
             # Pixel centers
-            yy, xx = np.mgrid[:ny, :nx]
-            points = np.column_stack([
-                xx.ravel() + 0.5,
-                yy.ravel() + 0.5,
-            ])
+            xv, yv = np.meshgrid(coordinates_xy[0], coordinates_xy[1]) # yx coordinates
+            points = np.column_stack([xv.ravel(), yv.ravel()])
 
             polygon = Path(lasso_xy)
             mask = polygon.contains_points(points)
@@ -572,28 +571,21 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
                     mask,
                     dims=["y", "x"],
                     coords={
-                        "x": np.arange(nx),
-                        "y": np.arange(ny),
+                        "x": coordinates_xy[0],
+                        "y": coordinates_xy[1],
                     },
                     name="value",
                 )
 
             return mask
-        print("Updating selection mask")
-        # Scale geometry from (-0.5, 0.5) to (0, nx) and (0, ny)
-        # scaled_geometry = [
-        #     (
-        #         1 * (x + 0.5) * self.img_data.shape[1],
-        #         1 * (y + 0.5) * self.img_data.shape[0],
-        #     )
-        #     for x, y in geometry
-        # ]
+        
+        logger.debug("Updating selection mask")
         self.mask = lasso_to_mask(geometry, mask_shape)
         # Compute percentage of pixels inside
         num_selected = np.count_nonzero(self.mask)
         total_pixels = self.mask.size
         pct_selected = 100 * num_selected / total_pixels
-        print(f"Selection mask updated: {num_selected} pixels ({pct_selected:.2f}%) inside the lasso")
+        logger.debug(f"Selection mask updated: {num_selected} pixels ({pct_selected:.2f}%) inside the lasso")
 
     @(
         param.depends(
