@@ -4,6 +4,11 @@ from panel.io import hold
 import param
 import holoviews as hv
 from holoviews import streams
+
+from holoviews.selection import link_selections
+from holoviews.operation.datashader import datashade
+from matplotlib.path import Path
+
 import numpy as np
 import xarray as xr
 
@@ -80,6 +85,8 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     # The numpy array to be displayed
     img_data = param.Array(default=None, instantiate=False, precedence=-1)
+    mask = param.Parameter(default=None, instantiate=False, precedence=-1)
+
     img_axis_1 = param.Selector(
         default="x", objects=["x", "y", "z"], label="Horizontal axis"
     )
@@ -477,7 +484,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         logger.debug("_plot_data")
         frame = self._get_datasetslice()
         img = hv.Image(frame)
-
+        
         if (
             self.bls_data is None
             or self.bls_analysis is None
@@ -497,7 +504,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             data_aspect=1,
             axiswise=True,  # Give independent axis
             framewise=True,
-            tools=["hover", "tap"],
+            tools=["hover", "tap", "lasso_select"],
             title=title,
             # padding=0.2,
             # repsonsive is not exactly working as expected, and breaks a bit the whole thing
@@ -506,12 +513,129 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         )
 
         # Generating the streams to record where the user clicked on the plot
-
         stream = streams.Tap(source=img, x=np.nan, y=np.nan)
         stream.add_subscriber(self._update_click_param)
 
-        return img
+        # testing different streams
+        lasso = streams.Lasso(source=img)
+        xvals = self.img_dataset.data.coords[self.img_axis_1].values.tolist()
+        yvals = self.img_dataset.data.coords[self.img_axis_2].values.tolist()
 
+        ny = len(yvals)
+        nx = len(xvals)
+        lasso.add_subscriber(lambda geometry : self._test_lasso(geometry, (ny, nx)))
+        
+        select = streams.Selection1D(source=img)
+        select.add_subscriber(self._test_select)
+        #ls = link_selections.instance()
+        #return ls(datashade(img))
+
+        return img
+    
+    def _test_select(self, index):
+        print("hi from select")
+        print(index)
+
+
+    def _test_lasso(self, geometry, mask_shape):
+
+        def lasso_to_mask(lasso_xy, shape):
+            """
+            Convert a lasso polygon into a boolean pixel mask.
+
+            Parameters
+            ----------
+            lasso_xy : (N, 2) array
+                Polygon vertices in (x, y) data coordinates
+            shape : tuple
+                (ny, nx) shape of the image
+
+            Returns
+            -------
+            mask : (ny, nx) bool array
+                True for pixels inside the lasso
+            """
+            print(shape)
+            ny, nx = shape
+
+            # Pixel centers
+            yy, xx = np.mgrid[:ny, :nx]
+            points = np.column_stack([
+                xx.ravel() + 0.5,
+                yy.ravel() + 0.5,
+            ])
+
+            polygon = Path(lasso_xy)
+            mask = polygon.contains_points(points)
+            mask = mask.reshape((ny, nx))
+            mask = xr.DataArray(
+                    mask,
+                    dims=["y", "x"],
+                    coords={
+                        "x": np.arange(nx),
+                        "y": np.arange(ny),
+                    },
+                    name="value",
+                )
+
+            return mask
+        print("Updating selection mask")
+        # Scale geometry from (-0.5, 0.5) to (0, nx) and (0, ny)
+        # scaled_geometry = [
+        #     (
+        #         1 * (x + 0.5) * self.img_data.shape[1],
+        #         1 * (y + 0.5) * self.img_data.shape[0],
+        #     )
+        #     for x, y in geometry
+        # ]
+        self.mask = lasso_to_mask(geometry, mask_shape)
+        # Compute percentage of pixels inside
+        num_selected = np.count_nonzero(self.mask)
+        total_pixels = self.mask.size
+        pct_selected = 100 * num_selected / total_pixels
+        print(f"Selection mask updated: {num_selected} pixels ({pct_selected:.2f}%) inside the lasso")
+
+    @(
+        param.depends(
+            "mask",  # variable
+        )
+    )
+    def _plot_mask(self):
+        """
+        Return an HoloViews Image overlay of the current mask.
+
+        The mask should be a boolean array of the same shape as the image.
+        True pixels are highlighted (e.g., red), False pixels are transparent.
+        """
+        if self.mask is None:
+            # Nothing to overlay
+            return hv.Image(np.zeros((1, 1)))  # dummy invisible image
+
+        # Convert boolean mask to 0/1
+        mask_data = self.mask.astype(int)
+
+        # Create an HoloViews Image
+        mask_img = hv.Image(mask_data[::-1])
+
+        # Style: red overlay, transparent where mask=0
+        mask_img = mask_img.opts(
+            cmap=["grey", "red"],  # 0 → transparent, 1 → red
+            alpha=0.4,                   # overall transparency
+            framewise=True,
+            tools=[],                     # no tools for mask
+        )
+
+        return mask_img
+
+    @pn.depends(
+        "_plot_data",
+        "_plot_mask"
+    ) 
+    def _plot_masked_data(self):
+        data = self._plot_data()
+        mask = self._plot_mask()
+        return data * mask
+    
     def _update_click_param(self, x, y):
         """
         This function takes the (x,y) coordinate from a click on the displayed picture,
@@ -777,7 +901,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
         main_card = pn.Card(
             pn.Row(self.img_axis_3_slice_widget, align="center"),
-            pn.pane.HoloViews(self._plot_data, sizing_mode="stretch_width"),
+            pn.pane.HoloViews(self._plot_masked_data, sizing_mode="stretch_width"),
             self.result_options,
             axis_options,
             rendering_options,
