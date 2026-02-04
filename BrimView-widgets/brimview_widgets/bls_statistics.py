@@ -1,38 +1,19 @@
-from typing import ClassVar
-
-import scipy
-
 from .bls_data_visualizer import BlsDataVisualizer
-from brimview_widgets.bls_types import bls_param
-import panel as pn
-from panel.io import hold
-import param
-import holoviews as hv
-from holoviews import streams
-
-from holoviews.selection import link_selections
-from matplotlib.path import Path
-
-import numpy as np
-import xarray as xr
-
 from .logging import logger
+from .bls_types import bls_param
 
-import brimfile as bls
-from .bls_file_input import BlsFileInput
-from .utils import only_on_change, catch_and_notify
-from .widgets import HorizontalEditableIntSlider
-import colorcet as cc
-import pandas as pd
-
-import sys
-
-# DEBUG
-import time
-import datetime as dt
-
+import panel as pn
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
+import param
+import holoviews as hv
+import numpy as np
+import scipy
+import xarray as xr
+import pandas as pd
+
+
+ZYXPoints = list[tuple[int, int, int]]
 
 
 class BlsStatistics(WidgetBase, PyComponent):
@@ -79,6 +60,7 @@ class BlsStatistics(WidgetBase, PyComponent):
         params["name"] = "Group Statistics"
         super().__init__(**params)
 
+        # === Linking to other widgets ===
         # TODO: update result_plot to use this new class
         self.bls_data: bls_param = bls_param(
             file=result_plot.param.bls_file,
@@ -92,20 +74,21 @@ class BlsStatistics(WidgetBase, PyComponent):
         self.img_axis_3 = result_plot.param.img_axis_3
         self.img_axis_3_slice = result_plot.param.img_axis_3_slice
 
+        # === Some panel setup ===
         # Because we're not a pn.Viewer anymore, by default we lost the "card" display
         # so despite us returning a card from __panel__, the shown card didn't match
         # the card display (background color, shadows)
         self.css_classes.append("card")
 
-        # Typing hints
+        self.spectrum_plot_widget = pn.pane.HoloViews(None)
+        self.statistic_tabulator_widget = self.statistic_tabulator()
+
+        self.tqdm = pn.widgets.Tqdm(visible=False)
+
+        # === Typing hints ===
         self.bls_data: bls_param
         self.img_mask: xr.DataArray
         self.selected_points: list[tuple[int, int, int]]
-
-    @pn.depends("img_mask", watch=True)
-    def _mask_updated(self):
-        print("Statistics widget: mask updated")
-        # Here we would compute statistics based on the updated mask
 
     @pn.depends("img_mask")
     def mask_status(self):
@@ -161,65 +144,177 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     @pn.depends("selected_points")
     def selected_points_widget(self):
+        """
+        Display the list of selected points in a DataFrame.
+        Should only be used for debugging due to potential performance issues.
+        """
         if not self.selected_points:
             return pn.pane.Markdown("No points selected.")
         else:
             df = pd.DataFrame(self.selected_points, columns=["z", "y", "x"])
             return pn.widgets.DataFrame(df, autosize_mode="fit_columns", height=200)
 
-    @pn.depends("selected_points")
-    # @catch_and_notify(prefix="<b>Compute average spectrum: </b>")
-    def average_spectrum_widget(self):
-        if not self.selected_points or self.bls_data is None:
+    # === Average spectrum computation and visualization ===
+
+    def fetch_data_from_points(self, selected_points: ZYXPoints):
+        """
+        Fetch data from the selected points.
+        """
+        if not selected_points or self.bls_data is None:
             logger.debug(
                 "No points selected or no BLS data loaded for average spectrum"
             )
-            return pn.pane.Markdown("No points selected or no BLS data loaded.")
-        else:
-            # Retrieve spectra for selected points
-            retrieved_PSD = []
-            retrieved_frequency = []
-            for z, y, x in self.selected_points:
-                PSD, frequency, PSD_units, frequency_units = (
-                    self.bls_data.data.get_spectrum_in_image((z, y, x))
-                )
-                retrieved_PSD.append(PSD)
-                retrieved_frequency.append(frequency)
-
-            # Generate average PSD
-            # Figuring out which frequency axis to use
-            n_data_points = len(
-                retrieved_PSD[0]
-            )  # Assuming they all have the same number of points
-            freq_min = np.nanmin(retrieved_frequency)
-            freq_max = np.nanmax(retrieved_frequency)
-            common_freq = np.linspace(freq_min, freq_max, n_data_points)  # shape (71,)
-
-            # Interpolating all the PSDs to the common frequency axis
-            interpolated_psd = np.empty((len(self.selected_points), len(common_freq)))
-            for i in range(len(self.selected_points)):
-                interp_func = scipy.interpolate.interp1d(
-                    retrieved_frequency[i],
-                    retrieved_PSD[i],
-                    kind="linear",
-                    bounds_error=False,
-                    fill_value="extrapolate",
-                )
-                interpolated_psd[i, :] = interp_func(common_freq)
-
-            mean_spectrum = np.mean(interpolated_psd, axis=0)  # shape (71,)
-            std_spectrum = np.nanstd(interpolated_psd, axis=0)
-            curve = hv.Curve(
-                (common_freq, mean_spectrum),
-                hv.Dimension("Frequency", unit=frequency_units),
-                hv.Dimension("PSD", unit=PSD_units),
-                label=f"Average Spectra",
-            ).opts(
-                tools=["hover"],
+            return (
+                None,
+                None,
             )
-            spread = hv.Spread((common_freq, mean_spectrum, std_spectrum))
-            plot = curve * spread 
-            return pn.pane.HoloViews(plot)
+        else:
+            all_spectra = []
+            all_quantities = []
+            for z, y, x in self.tqdm(
+                selected_points, desc="Fetching data from points", leave=False
+            ):
+                spectrum, quantities = (
+                    self.bls_data.data.get_spectrum_and_all_quantities_in_image(
+                        ar=self.bls_data.analysis, coor=(z, y, x)
+                    )
+                )
+                all_spectra.append(spectrum)
+                all_quantities.append(quantities)
+            return all_spectra, all_quantities
+
+    @pn.depends("selected_points", watch=True)
+    async def update_widget(self):
+        if self.bls_data is None or not self.selected_points:
+            logger.debug("No data or no points selected, skipping statistics update")
+            self.spectrum_plot_widget.object = None
+            self.statistic_tabulator_widget.value = pd.DataFrame()
+            return
+        
+        self.tqdm.visible = True
+        spectra, quantities = self.fetch_data_from_points(self.selected_points)
+
+        # spectra: (PSD, frequency, PSD_units, frequency_units)
+        (common_freq, mean_spectrum, std_spectrum, PSD_units, frequency_units) = (
+            self.compute_average_spectrum(spectra)
+        )
+        curve = self.plot_average_spectrum(
+            common_freq, mean_spectrum, std_spectrum, PSD_units, frequency_units
+        )
+        self.spectrum_plot_widget.object = curve
+
+        # quantities: result[quantity.name][peak.name] = bls.Metadata.Item(value, units)
+        df_quantities = self.compute_average_quantities(quantities)
+        self.statistic_tabulator_widget.value = df_quantities
+        self.tqdm.visible = False
+
+    def compute_average_spectrum(
+        self, spectra
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, str, str]:
+        retrieved_PSD = []
+        retrieved_frequency = []
+        for PSD, frequency, PSD_units, frequency_units in spectra:
+            retrieved_PSD.append(PSD)
+            retrieved_frequency.append(frequency)
+
+        # Generate average PSD
+        # Figuring out which frequency axis to use
+        n_data_points = len(
+            retrieved_PSD[0]
+        )  # Assuming they all have the same number of points
+        freq_min = np.nanmin(retrieved_frequency)
+        freq_max = np.nanmax(retrieved_frequency)
+        common_freq = np.linspace(freq_min, freq_max, n_data_points)  # shape (71,)
+
+        # Interpolating all the PSDs to the common frequency axis
+        interpolated_psd = np.empty((len(self.selected_points), len(common_freq)))
+        for i in self.tqdm(
+            range(len(self.selected_points)), desc="Interpolating spectra", leave=False
+        ):
+            interp_func = scipy.interpolate.interp1d(
+                retrieved_frequency[i],
+                retrieved_PSD[i],
+                kind="linear",
+                bounds_error=False,
+                fill_value="extrapolate",
+            )
+            interpolated_psd[i, :] = interp_func(common_freq)
+
+        mean_spectrum = np.mean(interpolated_psd, axis=0)  # shape (71,)
+        std_spectrum = np.nanstd(interpolated_psd, axis=0)
+        return (common_freq, mean_spectrum, std_spectrum, PSD_units, frequency_units)
+
+    def compute_average_quantities(self, quantities) -> pd.DataFrame:
+        """
+
+        Assuming quantities: result[quantity.name][peak.name] = bls.Metadata.Item(value, units)
+        """
+        df_rows = []
+        for quantity_name in self.tqdm(
+            quantities[0].keys(), desc="Averaging quantities", leave=False
+        ):
+            for peak_name in self.tqdm(
+                quantities[0][quantity_name].keys(),
+                desc=f"Averaging peaks for {quantity_name}",
+                leave=False,
+            ):
+                values = [
+                    quantities[i][quantity_name][peak_name].value
+                    for i in range(len(quantities))
+                ]
+                mean_value = np.mean(values)
+                std_value = np.std(values)
+                logger.debug(
+                    f"Average {quantity_name} ({peak_name}): {mean_value:.3f} ± {std_value:.3f}"
+                )
+                new_row = {
+                    "Peak": peak_name,
+                    "Quantity": quantity_name,
+                    "Mean": mean_value,
+                    "Std": std_value,
+                    "Units": quantities[0][quantity_name][peak_name].units,
+                }
+                df_rows.append(new_row)
+        df = pd.DataFrame(df_rows)
+        return df
+
+    # === Panel display method / GUI logic===
+
+    def statistic_tabulator(self) -> pn.widgets.Tabulator:
+        tab = pn.widgets.Tabulator(
+            pd.DataFrame(
+                {
+                    "Peak": ["Peak placeholder"],
+                    "Quantity": ["Quantity placeholder"],
+                    "Mean": [0.0],
+                    "Std": [1.0],
+                    "Units": ["Units placeholder"],
+                }
+            ),
+            show_index=False,
+            disabled=True,
+            groupby=["Peak"],
+            hidden_columns=["Peak", "Description"],
+            configuration={
+                "groupStartOpen": True  # This makes all groups collapsed initially
+            },
+        )
+        return tab
+
+    def plot_average_spectrum(
+        self, common_freq, mean_spectrum, std_spectrum, PSD_units, frequency_units
+    ) -> hv.Curve:
+        curve = hv.Curve(
+            (common_freq, mean_spectrum),
+            hv.Dimension("Frequency", unit=frequency_units),
+            hv.Dimension("PSD", unit=PSD_units),
+            label=f"Average Spectra",
+        ).opts(
+            tools=["hover"],
+        )
+        spread = hv.Spread((common_freq, mean_spectrum, std_spectrum))
+        plot = curve * spread
+        return plot
 
     def __panel__(self):
         """Create Panel layout for the statistics widget."""
@@ -227,9 +322,10 @@ class BlsStatistics(WidgetBase, PyComponent):
             pn.pane.Markdown(
                 "## Statistics\n\nStatistics of selected regions will be displayed here."
             ),
-            self.average_spectrum_widget,
+            self.tqdm,
+            self.spectrum_plot_widget,
+            self.statistic_tabulator_widget,
             self.mask_status,
-            self.selected_points_widget,
             title="BLS Statistics",
             sizing_mode="stretch_height",
         )
