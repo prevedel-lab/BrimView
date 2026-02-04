@@ -15,7 +15,7 @@ authors = [
 ]
 description = "Widget to display Brimfile data in a Panel application"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
