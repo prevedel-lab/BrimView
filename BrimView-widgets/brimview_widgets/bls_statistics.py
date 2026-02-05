@@ -5,6 +5,7 @@ from .bls_types import bls_param
 import panel as pn
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
+from bokeh.models.widgets.tables import ScientificFormatter
 import param
 import holoviews as hv
 import numpy as np
@@ -373,6 +374,10 @@ class BlsStatistics(WidgetBase, PyComponent):
             hidden_columns=["Peak", "Description"],
             configuration={
                 "groupStartOpen": True  # This makes all groups collapsed initially
+            },
+            formatters={
+                "Mean": ScientificFormatter(precision=3),
+                "Std": ScientificFormatter(precision=3)
             },
             layout="fit_columns",
             sizing_mode="stretch_width",
