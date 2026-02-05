@@ -126,27 +126,21 @@ class BlsStatistics(WidgetBase, PyComponent):
             # Assuming single z slice for simplicity; extend as needed
 
             # TODO: Maybe it's time now to create a proper coordinate mapper class?
-            match self.img_axis_1:
-                case "x":
-                    x = x_displayed
-                case "y":
-                    y = x_displayed
-                case "z":
-                    z = x_displayed
-            match self.img_axis_2:
-                case "x":
-                    x = y_displayed
-                case "y":
-                    y = y_displayed
-                case "z":
-                    z = y_displayed
-            match self.img_axis_3:
-                case "x":
-                    x = self.img_axis_3_slice
-                case "y":
-                    y = self.img_axis_3_slice
-                case "z":
-                    z = self.img_axis_3_slice
+            # Initialize coordinates and map each logical axis exactly once
+            x = y = z = None
+            axis_mappings = [
+                (self.img_axis_1, x_displayed, None),
+                (self.img_axis_2, y_displayed, None),
+                (self.img_axis_3, None, self.img_axis_3_slice),
+            ]
+            for axis_name, displayed_val, slice_val in axis_mappings:
+                value = displayed_val if displayed_val is not None else slice_val
+                if axis_name == "x":
+                    x = value
+                elif axis_name == "y":
+                    y = value
+                elif axis_name == "z":
+                    z = value
 
             selected_points.append((z, y, x))
         return selected_points
@@ -194,7 +188,7 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     @pn.depends("selected_points", watch=True)
     @catch_and_notify(prefix="<b>Processing ROI: </b>")
-    async def update_widget(self):
+    def update_widget(self):
         if (
             self.bls_data is None
             or not self.bls_data.is_loaded()
@@ -312,7 +306,7 @@ class BlsStatistics(WidgetBase, PyComponent):
         Controls an additional spinner UI.
         This goes on top of the `loading` param that comes with panel widgets.
 
-        This is especially usefull in the `panel convert` case,
+        This is especially useful in the `panel convert` case,
         because some UI elements can't updated easily (or at least in the same way as `panel serve`).
         In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes
         don't get updated.
@@ -374,9 +368,9 @@ class BlsStatistics(WidgetBase, PyComponent):
             show_index=False,
             disabled=True,
             groupby=["Peak"],
-            hidden_columns=["Peak", "Description"],
+            hidden_columns=["Peak"],
             configuration={
-                "groupStartOpen": True  # This makes all groups collapsed initially
+                "groupStartOpen": True
             },
             formatters={
                 "Mean": ScientificFormatter(precision=3),

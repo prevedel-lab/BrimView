@@ -627,7 +627,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
         # Style: red overlay, transparent where mask=0
         mask_img = mask_img.opts(
-            cmap=["grey", "red"],  # 0 → transparent, 1 → red
+            cmap=["grey", "red"],  # 0 → grey, 1 → red
             alpha=0.4,  # overall transparency
             framewise=True,
             tools=[],  # no tools for mask
