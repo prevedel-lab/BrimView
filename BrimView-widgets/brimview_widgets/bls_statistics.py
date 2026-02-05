@@ -1,3 +1,4 @@
+from brimview_widgets.utils import catch_and_notify
 from .bls_data_visualizer import BlsDataVisualizer
 from .logging import logger
 from .bls_types import bls_param
@@ -15,6 +16,7 @@ import pandas as pd
 
 
 ZYXPoints = list[tuple[int, int, int]]
+
 
 class BlsStatistics(WidgetBase, PyComponent):
     """
@@ -63,7 +65,7 @@ class BlsStatistics(WidgetBase, PyComponent):
         params["name"] = "Group Statistics"
         self.tooltip = "Use the **Lasso Select** tool to select a region in the image. This widget will compute the average spectrum and other quantities for the selected region."
         super().__init__(**params)
-        
+
         # === Linking to other widgets ===
         # TODO: update result_plot to use this new class
         self.bls_data: bls_param = bls_param(
@@ -191,6 +193,7 @@ class BlsStatistics(WidgetBase, PyComponent):
             return all_spectra, all_quantities
 
     @pn.depends("selected_points", watch=True)
+    @catch_and_notify(prefix="<b>Processing ROI: </b>")
     async def update_widget(self):
         if (
             self.bls_data is None
@@ -230,6 +233,8 @@ class BlsStatistics(WidgetBase, PyComponent):
     def compute_average_spectrum(
         self, spectra
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, str, str]:
+        if spectra is None or len(spectra) == 0:
+            raise ValueError("No spectra provided for averaging")
         retrieved_PSD = []
         retrieved_frequency = []
         for PSD, frequency, PSD_units, frequency_units in spectra:
@@ -265,9 +270,11 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     def compute_average_quantities(self, quantities) -> pd.DataFrame:
         """
-
         Assuming quantities: result[quantity.name][peak.name] = bls.Metadata.Item(value, units)
         """
+        if quantities is None or len(quantities) == 0:
+            raise ValueError("No quantities provided for averaging")
+
         df_rows = []
         for quantity_name in self.tqdm(
             quantities[0].keys(), desc="Averaging quantities", leave=False
@@ -373,7 +380,7 @@ class BlsStatistics(WidgetBase, PyComponent):
             },
             formatters={
                 "Mean": ScientificFormatter(precision=3),
-                "Std": ScientificFormatter(precision=3)
+                "Std": ScientificFormatter(precision=3),
             },
             layout="fit_columns",
             sizing_mode="stretch_width",

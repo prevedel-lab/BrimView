@@ -587,7 +587,10 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             mask = mask.reshape((ny, nx))
             mask = xr.DataArray(
                 mask,
-                dims=["y", "x"],
+                dims=[
+                    "y",
+                    "x",
+                ],  # This should be fine, because that's what hv.Image expects
                 coords={
                     "x": coordinates_xy[0],
                     "y": coordinates_xy[1],
