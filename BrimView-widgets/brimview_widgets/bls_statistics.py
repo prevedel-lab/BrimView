@@ -57,9 +57,13 @@ class BlsStatistics(WidgetBase, PyComponent):
     )
 
     def __init__(self, result_plot: BlsDataVisualizer, **params):
+        self.spinner = pn.indicators.LoadingSpinner(
+            value=False, size=20, name="Idle", visible=True
+        )
         params["name"] = "Group Statistics"
+        self.tooltip = "Use the **Lasso Select** tool to select a region in the image. This widget will compute the average spectrum and other quantities for the selected region."
         super().__init__(**params)
-
+        
         # === Linking to other widgets ===
         # TODO: update result_plot to use this new class
         self.bls_data: bls_param = bls_param(
@@ -80,7 +84,10 @@ class BlsStatistics(WidgetBase, PyComponent):
         # the card display (background color, shadows)
         self.css_classes.append("card")
 
-        self.spectrum_plot_widget = pn.pane.HoloViews(None)
+        self.spectrum_plot_widget = pn.pane.HoloViews(
+            None,
+            sizing_mode="stretch_width",
+        )
         self.statistic_tabulator_widget = self.statistic_tabulator()
 
         self.tqdm = pn.widgets.Tqdm(visible=False)
@@ -93,7 +100,7 @@ class BlsStatistics(WidgetBase, PyComponent):
     @pn.depends("img_mask")
     def mask_status(self):
         if self.img_mask is None:
-            return "No selection"
+            return "No selection in the image. Use the lasso tool to select a region."
         else:
             num_selected = np.count_nonzero(self.img_mask)
             total_pixels = self.img_mask.size
@@ -185,12 +192,20 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     @pn.depends("selected_points", watch=True)
     async def update_widget(self):
-        if self.bls_data is None or not self.selected_points:
-            logger.debug("No data or no points selected, skipping statistics update")
+        if (
+            self.bls_data is None
+            or not self.bls_data.is_loaded()
+            or not self.selected_points
+        ):
+            logger.debug(
+                "No data or no points selected, skipping statistics widget update"
+            )
             self.spectrum_plot_widget.object = None
-            self.statistic_tabulator_widget.value = pd.DataFrame()
+            self.statistic_tabulator_widget.value = self.placeholder_dataframe()
+            self.statistic_tabulator_widget.visible = False
             return
-        
+
+        self.loading = True
         self.tqdm.visible = True
         spectra, quantities = self.fetch_data_from_points(self.selected_points)
 
@@ -205,8 +220,12 @@ class BlsStatistics(WidgetBase, PyComponent):
 
         # quantities: result[quantity.name][peak.name] = bls.Metadata.Item(value, units)
         df_quantities = self.compute_average_quantities(quantities)
+
+        self.statistic_tabulator_widget.visible = True
         self.statistic_tabulator_widget.value = df_quantities
+
         self.tqdm.visible = False
+        self.loading = False
 
     def compute_average_spectrum(
         self, spectra
@@ -280,17 +299,74 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     # === Panel display method / GUI logic===
 
+    @pn.depends("loading", watch=True)
+    def loading_spinner(self):
+        """
+        Controls an additional spinner UI.
+        This goes on top of the `loading` param that comes with panel widgets.
+
+        This is especially usefull in the `panel convert` case,
+        because some UI elements can't updated easily (or at least in the same way as `panel serve`).
+        In particular, the visible toggle is not always working, and elements inside Rows and Columns sometimes
+        don't get updated.
+        """
+        if self.loading:
+            self.spinner.value = True
+            self.spinner.name = "Loading..."
+            self.spinner.visible = True
+        else:
+            self.spinner.value = False
+            self.spinner.name = "Idle"
+            self.spinner.visible = True
+
+    def rewrite_card_header(self, card: pn.Card, tooltip: str = None):
+        """
+        Changes a bit how the header of the card is displayed.
+        We replace the default title by
+            [{self.name}     {spinner}]
+
+        With self.name to the left and spinner to the right
+        """
+        params = {
+            "object": f"<h3>{self.name}</h3>" if self.name else "&#8203;",
+            "css_classes": card.title_css_classes,
+            "margin": (5, 0),
+        }
+        self.spinner.align = ("end", "center")
+        self.spinner.margin = (10, 30)
+        header = pn.FlexBox(
+            pn.Row(
+                pn.pane.HTML(**params),
+                pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
+            ),
+            # self.spinner,
+            # pn.Spacer(),  # pushes next item to the right
+            self.spinner,
+            align_content="space-between",
+            align_items="center",  # Vertical-ish
+            sizing_mode="stretch_width",
+            justify_content="space-between",
+        )
+        # header.styles = {"place-content": "space-between"}
+        card.header = header
+        card._header_layout.styles = {"width": "inherit"}
+
+    def placeholder_dataframe(
+        self,
+    ) -> pd.DataFrame:  # TODO: should this be it's own class?
+        return pd.DataFrame(
+            {
+                "Peak": ["Peak placeholder"],
+                "Quantity": ["Quantity placeholder"],
+                "Mean": [0.0],
+                "Std": [1.0],
+                "Units": ["Units placeholder"],
+            }
+        )
+
     def statistic_tabulator(self) -> pn.widgets.Tabulator:
         tab = pn.widgets.Tabulator(
-            pd.DataFrame(
-                {
-                    "Peak": ["Peak placeholder"],
-                    "Quantity": ["Quantity placeholder"],
-                    "Mean": [0.0],
-                    "Std": [1.0],
-                    "Units": ["Units placeholder"],
-                }
-            ),
+            self.placeholder_dataframe(),
             show_index=False,
             disabled=True,
             groupby=["Peak"],
@@ -298,6 +374,8 @@ class BlsStatistics(WidgetBase, PyComponent):
             configuration={
                 "groupStartOpen": True  # This makes all groups collapsed initially
             },
+            layout="fit_columns",
+            sizing_mode="stretch_width",
         )
         return tab
 
@@ -311,22 +389,21 @@ class BlsStatistics(WidgetBase, PyComponent):
             label=f"Average Spectra",
         ).opts(
             tools=["hover"],
+            title="Average Spectrum of Selected Region",
         )
-        spread = hv.Spread((common_freq, mean_spectrum, std_spectrum))
+        spread = hv.Spread((common_freq, mean_spectrum, std_spectrum), label="Std Dev")
         plot = curve * spread
         return plot
 
     def __panel__(self):
         """Create Panel layout for the statistics widget."""
         card = pn.Card(
-            pn.pane.Markdown(
-                "## Statistics\n\nStatistics of selected regions will be displayed here."
-            ),
+            self.mask_status,
             self.tqdm,
             self.spectrum_plot_widget,
             self.statistic_tabulator_widget,
-            self.mask_status,
             title="BLS Statistics",
             sizing_mode="stretch_height",
         )
+        self.rewrite_card_header(card, tooltip=self.tooltip)
         return card

@@ -218,7 +218,7 @@ def build_ui():
     statistics_widget = brimview_widgets.BlsStatistics(DataVisualizer)
     brim_visualizer = pn.layout.Row(
         pn.layout.FlexBox(DataVisualizer, margin=10),
-        pn.layout.FlexBox(spectrum_visualizer, statistics_widget, margin=10),
+        pn.layout.FlexBox(spectrum_visualizer, statistics_widget, margin=10, gap="10px"),
         sizing_mode="stretch_width",
     )
     main_tabs.append((".brim Visualizer", brim_visualizer))

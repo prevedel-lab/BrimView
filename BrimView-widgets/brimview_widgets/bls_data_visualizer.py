@@ -483,6 +483,10 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         logger.debug("_plot_data")
         frame = self._get_datasetslice()
         img = hv.Image(frame)
+
+        # If we need to replot the data, then the mask is probably meaningless anyways
+        # The argument is needed to match the signature of the PlotReset stream
+        self._reset_mask(True) 
         
         if (
             self.bls_data is None
