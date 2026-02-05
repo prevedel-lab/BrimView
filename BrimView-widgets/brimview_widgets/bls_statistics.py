@@ -339,15 +339,12 @@ class BlsStatistics(WidgetBase, PyComponent):
                 pn.pane.HTML(**params),
                 pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
             ),
-            # self.spinner,
-            # pn.Spacer(),  # pushes next item to the right
             self.spinner,
             align_content="space-between",
             align_items="center",  # Vertical-ish
             sizing_mode="stretch_width",
             justify_content="space-between",
         )
-        # header.styles = {"place-content": "space-between"}
         card.header = header
         card._header_layout.styles = {"width": "inherit"}
 
