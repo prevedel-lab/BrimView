@@ -22,3 +22,7 @@ class bls_param(param.Parameterized):
             self.file = None
             self.data = None
             self.analysis = None
+    
+    def is_loaded(self) -> bool:
+        logger.debug(f"Checking if bls_input is fully loaded: file {self.file is not None}, data {self.data is not None}, analysis {self.analysis is not None}")
+        return self.file is not None and self.data is not None and self.analysis is not None
