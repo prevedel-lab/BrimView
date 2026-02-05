@@ -26,7 +26,7 @@ As there are 3 deployment versions of BrimView, it might be a bit overwhelming t
 ## Installation
 0. Clone this repository 
 1. Create a new .venv enviromment 
-2. Install BrimView-widgets: `pip install -e ".\BrimView-widgets\[processing, localfile, remote-store]`
+2. Install BrimView-widgets: `pip install -e ".\BrimView-widgets\[processing, localfile, remote-store, statistics]`
 3. You should be able to run `panel serve ./src/index.py --dev` now, and everything should be working
 
 ### Web-app

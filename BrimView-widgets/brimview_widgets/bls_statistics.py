@@ -16,7 +16,6 @@ import pandas as pd
 
 ZYXPoints = list[tuple[int, int, int]]
 
-
 class BlsStatistics(WidgetBase, PyComponent):
     """
     Widget to compute and display basic statistics of selected regions in BLS data.

@@ -15,7 +15,7 @@ authors = [
 ]
 description = "Widget to display Brimfile data in a Panel application"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
@@ -42,6 +42,7 @@ dependencies = [
 processing = ["HDF5_BLS_treat", "scipy"]
 localfile = ["tkinterdnd2"]
 remote-store = [ "brimfile[remote-store]"]
+statistics = ["scipy", "matplotlib"]
 
 [project.urls]
 Homepage = "https://github.com/prevedel-lab/BrimView"

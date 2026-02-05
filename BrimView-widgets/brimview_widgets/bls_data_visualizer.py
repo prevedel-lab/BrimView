@@ -6,7 +6,13 @@ import holoviews as hv
 from holoviews import streams
 
 from holoviews.selection import link_selections
-from matplotlib.path import Path
+
+try:
+    from matplotlib.path import Path
+    _GUI_ROI_SELECTION = True
+except ImportError:
+    _GUI_ROI_SELECTION = False
+
 
 import numpy as np
 import xarray as xr
@@ -498,6 +504,12 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             # title = f"{self.bls_data.get_name()}/{self.bls_analysis.get_name()}/{self.result_peak} "
             title = f"{self.bls_data.get_name()}/{self.bls_analysis.get_name()}/{self.result_peak} ({self._img_dimension_label()})"
 
+        if _GUI_ROI_SELECTION:
+            tools = ["hover", "tap", "lasso_select"]
+        else:
+            tools = ["hover", "tap"]
+            logger.warning("Matplotlib not found, lasso selection disabled.")
+
         img = img.opts(
             cmap=self.colormap,
             colorbar=True,
@@ -507,7 +519,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             data_aspect=1,
             axiswise=True,  # Give independent axis
             framewise=True,
-            tools=["hover", "tap", "lasso_select"],
+            tools=tools,
             title=title,
             # padding=0.2,
             # repsonsive is not exactly working as expected, and breaks a bit the whole thing
@@ -519,14 +531,14 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         stream = streams.Tap(source=img, x=np.nan, y=np.nan)
         stream.add_subscriber(self._update_click_param)
 
-        # testing different streams
-        lasso = streams.Lasso(source=img)
-        x_coords = self.img_dataset.data.coords[self.img_axis_1].values.tolist()
-        y_coords = self.img_dataset.data.coords[self.img_axis_2].values.tolist()
-        lasso.add_subscriber(lambda geometry : self._create_mask_from_lasso(geometry, (x_coords, y_coords)))
+        if _GUI_ROI_SELECTION:
+            lasso = streams.Lasso(source=img)
+            x_coords = self.img_dataset.data.coords[self.img_axis_1].values.tolist()
+            y_coords = self.img_dataset.data.coords[self.img_axis_2].values.tolist()
+            lasso.add_subscriber(lambda geometry : self._create_mask_from_lasso(geometry, (x_coords, y_coords)))
 
-        reset_stream = streams.PlotReset(source=img)
-        reset_stream.add_subscriber(self._reset_mask)
+            reset_stream = streams.PlotReset(source=img)
+            reset_stream.add_subscriber(self._reset_mask)
         return img
     
 
