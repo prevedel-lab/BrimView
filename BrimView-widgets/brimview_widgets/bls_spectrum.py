@@ -251,6 +251,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         self.bls_spectrum_in_image = None
         params["name"] = "Spectrum visualization"
         super().__init__(**params)
+        self.tooltip = "**Click on the image** to display the spectrum at the selected pixel. If a fit model is available, it will be displayed as well."
         # Watch tap stream updates
 
         # Reference to the "main" plot_click
@@ -393,7 +394,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             self.spinner.name = "Idle"
             self.spinner.visible = True
 
-    def rewrite_card_header(self, card: pn.Card):
+    def rewrite_card_header(self, card: pn.Card, tooltip: str = None):
         """
         Changes a bit how the header of the card is displayed.
         We replace the default title by
@@ -409,16 +410,16 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         self.spinner.align = ("end", "center")
         self.spinner.margin = (10, 30)
         header = pn.FlexBox(
-            pn.pane.HTML(**params),
-            # self.spinner,
-            # pn.Spacer(),  # pushes next item to the right
+            pn.Row(
+                pn.pane.HTML(**params),
+                pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
+            ),
             self.spinner,
             align_content="space-between",
             align_items="center",  # Vertical-ish
             sizing_mode="stretch_width",
             justify_content="space-between",
         )
-        # header.styles = {"place-content": "space-between"}
         card.header = header
         card._header_layout.styles = {"width": "inherit"}
 
@@ -814,5 +815,5 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             sizing_mode="stretch_height",
         )
 
-        self.rewrite_card_header(card)
+        self.rewrite_card_header(card, self.tooltip)
         return card

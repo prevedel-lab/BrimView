@@ -2,6 +2,8 @@ import panel as pn
 import asyncio
 from functools import wraps
 
+import numpy as np
+
 from .logging import logger
 
 def only_on_change(*param_names):
@@ -115,3 +117,38 @@ def safe_get(container, *keys, default=None):
         return value.value
     except Exception:
         return default
+    
+def points_in_polygon(points, polygon):
+    """
+    Check if points are inside a polygon using ray casting algorithm.
+    
+    Parameters
+    ----------
+    points : (N, 2) array
+        Points to test as (x, y) coordinates
+    polygon : (M, 2) array
+        Polygon vertices as (x, y) coordinates
+    
+    Returns
+    -------
+    mask : (N,) bool array
+        True for points inside the polygon
+    """
+    n = len(polygon)
+    inside = np.zeros(len(points), dtype=bool)
+    
+    p1x, p1y = polygon[0]
+    for i in range(1, n + 1):
+        p2x, p2y = polygon[i % n]
+        
+        # Check if point is within y bounds
+        y_check = (points[:, 1] > min(p1y, p2y)) & (points[:, 1] <= max(p1y, p2y))
+        
+        # Check if point is to the left of the edge
+        if p2y != p1y:  # Avoid division by zero
+            x_intersect = (points[:, 1] - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+            inside ^= y_check & (points[:, 0] < x_intersect)
+        
+        p1x, p1y = p2x, p2y
+    
+    return inside

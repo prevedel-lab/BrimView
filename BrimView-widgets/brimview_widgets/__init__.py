@@ -10,6 +10,7 @@ from . sampledata_loader import SampledataLoader
 from .bls_metadata import BlsMetadata
 from .debug_report_widget import DebugReport
 from .environment import running_from_pyodide
+from .bls_statistics import BlsStatistics
 
 # Keep treatment widget out of the wasm package
 if running_from_pyodide:

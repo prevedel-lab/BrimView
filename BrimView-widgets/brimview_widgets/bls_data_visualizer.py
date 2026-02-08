@@ -4,6 +4,16 @@ from panel.io import hold
 import param
 import holoviews as hv
 from holoviews import streams
+
+from .utils import points_in_polygon
+try:
+    import scipy
+
+    _GUI_ROI_SELECTION = True
+except ImportError:
+    _GUI_ROI_SELECTION = False
+
+
 import numpy as np
 import xarray as xr
 
@@ -80,6 +90,8 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     # The numpy array to be displayed
     img_data = param.Array(default=None, instantiate=False, precedence=-1)
+    mask = param.Parameter(default=None, instantiate=False, precedence=-1)
+
     img_axis_1 = param.Selector(
         default="x", objects=["x", "y", "z"], label="Horizontal axis"
     )
@@ -478,6 +490,10 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         frame = self._get_datasetslice()
         img = hv.Image(frame)
 
+        # If we need to replot the data, then the mask is probably meaningless anyways
+        # The argument is needed to match the signature of the PlotReset stream
+        self._reset_mask(True)
+
         if (
             self.bls_data is None
             or self.bls_analysis is None
@@ -488,6 +504,12 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             # title = f"{self.bls_data.get_name()}/{self.bls_analysis.get_name()}/{self.result_peak} "
             title = f"{self.bls_data.get_name()}/{self.bls_analysis.get_name()}/{self.result_peak} ({self._img_dimension_label()})"
 
+        if _GUI_ROI_SELECTION:
+            tools = ["hover", "tap", "lasso_select"]
+        else:
+            tools = ["hover", "tap"]
+            logger.warning("Matplotlib not found, lasso selection disabled.")
+
         img = img.opts(
             cmap=self.colormap,
             colorbar=True,
@@ -497,7 +519,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             data_aspect=1,
             axiswise=True,  # Give independent axis
             framewise=True,
-            tools=["hover", "tap"],
+            tools=tools,
             title=title,
             # padding=0.2,
             # repsonsive is not exactly working as expected, and breaks a bit the whole thing
@@ -506,11 +528,118 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         )
 
         # Generating the streams to record where the user clicked on the plot
-
         stream = streams.Tap(source=img, x=np.nan, y=np.nan)
         stream.add_subscriber(self._update_click_param)
 
+        if _GUI_ROI_SELECTION:
+            lasso = streams.Lasso(source=img)
+            x_coords = self.img_dataset.data.coords[self.img_axis_1].values.tolist()
+            y_coords = self.img_dataset.data.coords[self.img_axis_2].values.tolist()
+            lasso.add_subscriber(
+                lambda geometry: self._create_mask_from_lasso(
+                    geometry, (x_coords, y_coords)
+                )
+            )
+
+            reset_stream = streams.PlotReset(source=img)
+            reset_stream.add_subscriber(self._reset_mask)
         return img
+
+    def _reset_mask(self, resetting=True):
+        """
+        Reset the selection mask to None.
+
+        Parameters
+        ----------
+        resetting : bool
+            Indicates if the reset is triggered by a user action.
+            Needed to match the signature of the PlotReset stream.
+            Not actually used.
+        """
+        logger.debug("Resetting selection mask")
+        self.mask = None
+
+    def _create_mask_from_lasso(self, geometry, mask_shape):
+
+        def lasso_to_mask(lasso_xy, coordinates_xy):
+            """
+            Convert a lasso polygon into a boolean pixel mask.
+
+            Parameters
+            ----------
+            lasso_xy : (N, 2) array
+                Polygon vertices in (x, y) data coordinates
+            coordinates_xy : tuple
+                (x_coords, y_coords) coordinates of the image
+
+            Returns
+            -------
+            mask : (ny, nx) bool array
+                True for pixels inside the lasso
+            """
+            nx, ny = (len(coordinates_xy[0]), len(coordinates_xy[1]))
+
+            # Pixel centers
+            xv, yv = np.meshgrid(coordinates_xy[0], coordinates_xy[1])  # yx coordinates
+            points = np.column_stack([xv.ravel(), yv.ravel()])
+
+            mask = points_in_polygon(points, lasso_xy)
+            mask = mask.reshape((ny, nx))
+            mask = xr.DataArray(
+                mask,
+                dims=[
+                    "y",
+                    "x",
+                ],  # This should be fine, because that's what hv.Image expects
+                coords={
+                    "x": coordinates_xy[0],
+                    "y": coordinates_xy[1],
+                },
+                name="value",
+            )
+
+            return mask
+
+        logger.debug("Updating selection mask")
+        self.mask = lasso_to_mask(geometry, mask_shape)
+
+    @(
+        param.depends(
+            "mask",  # variable
+        )
+    )
+    def _plot_mask(self):
+        """
+        Return an HoloViews Image overlay of the current mask.
+
+        The mask should be a boolean array of the same shape as the image.
+        True pixels are highlighted (e.g., red), False pixels are transparent.
+        """
+        if self.mask is None:
+            # Nothing to overlay
+            return hv.Image(np.zeros((1, 1)))  # dummy invisible image
+
+        # Convert boolean mask to 0/1
+        mask_data = self.mask.astype(int)
+
+        # Create an HoloViews Image
+        mask_img = hv.Image(mask_data[::-1])
+
+        # Style: red overlay, transparent where mask=0
+        mask_img = mask_img.opts(
+            cmap=["grey", "red"],  # 0 → grey, 1 → red
+            alpha=0.4,  # overall transparency
+            framewise=True,
+            tools=[],  # no tools for mask
+        )
+
+        return mask_img
+
+    @pn.depends("_plot_data", "_plot_mask")
+    def _plot_masked_data(self):
+        data = self._plot_data()
+        mask = self._plot_mask()
+        return data * mask
 
     def _update_click_param(self, x, y):
         """
@@ -539,14 +668,13 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
                 z = vertical_coord
 
         match self.img_axis_3:
-            # self.img_axis_3_slice is an index, so we need to convert it into the units used 
+            # self.img_axis_3_slice is an index, so we need to convert it into the units used
             case "x":
                 x = self.img_axis_3_slice * self.x_px.value
             case "y":
                 y = self.img_axis_3_slice * self.y_px.value
             case "z":
                 z = self.img_axis_3_slice * self.z_px.value
-
 
         # === weird WORKAROUND ===
         # - this function is being called by stream from Holoview
@@ -564,7 +692,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         # This has been tested with `panel serve` and `panel convert`
 
         def _panel_update():
-            
+
             self.dataset_zyx_click = (
                 round(z / self.z_px.value),
                 round(y / self.y_px.value),
@@ -601,7 +729,9 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         frame = self._get_datasetslice()
         self.histogram = frame.hist(adjoin=False)
 
-    @param.depends("bls_file", watch=True) # always update the colorange when a new file is loaded 
+    @param.depends(
+        "bls_file", watch=True
+    )  # always update the colorange when a new file is loaded
     @only_on_change(
         "img_dataset",  # variable
         "_update_axis_1",  # func
@@ -615,7 +745,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         self.colorrange = frame.range(frame.vdims[0])
 
     # this function only updates the colorange
-    # if autoscale is on   
+    # if autoscale is on
     @(
         param.depends(
             "img_dataset",  # variable
@@ -625,7 +755,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             "img_axis_3_slice",  # variable",
             watch=True,
         )
-    ) 
+    )
     def _autoscale_colorrange(self):
         if self.autoscale:
             self._update_colorrange()
@@ -715,10 +845,16 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         colormap_picker = pn.widgets.ColorMap.from_param(
             self.param.colormap, options=get_linear_colormaps(), ncols=3
         )
-        autoscale_checkbox = pn.widgets.Checkbox.from_param(self.param.autoscale, name='Autoscale')
+        autoscale_checkbox = pn.widgets.Checkbox.from_param(
+            self.param.autoscale, name="Autoscale"
+        )
         colorrange_picker = pn.widgets.RangeSlider.from_param(
-            self.param.colorrange, start=0, end=1, step=0.01, value_throttled=0.01,
-            disabled=self.autoscale 
+            self.param.colorrange,
+            start=0,
+            end=1,
+            step=0.01,
+            value_throttled=0.01,
+            disabled=self.autoscale,
         )
         rendering_options = pn.Card(
             pn.FlexBox(
@@ -736,7 +872,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         )
 
         # add a callback function which is called when the
-        # autoscale_checkbox is toggled 
+        # autoscale_checkbox is toggled
         @param.depends(self.param.autoscale, watch=True)
         def autoscale_toggled(value):
             self.param.autoscale = value
@@ -777,7 +913,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
         main_card = pn.Card(
             pn.Row(self.img_axis_3_slice_widget, align="center"),
-            pn.pane.HoloViews(self._plot_data, sizing_mode="stretch_width"),
+            pn.pane.HoloViews(self._plot_masked_data, sizing_mode="stretch_width"),
             self.result_options,
             axis_options,
             rendering_options,
