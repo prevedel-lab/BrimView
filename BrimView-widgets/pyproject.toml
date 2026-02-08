@@ -42,7 +42,7 @@ dependencies = [
 processing = ["HDF5_BLS_treat", "scipy"]
 localfile = ["tkinterdnd2"]
 remote-store = [ "brimfile[remote-store]"]
-statistics = ["scipy", "matplotlib"]
+statistics = ["scipy"]
 
 [project.urls]
 Homepage = "https://github.com/prevedel-lab/BrimView"

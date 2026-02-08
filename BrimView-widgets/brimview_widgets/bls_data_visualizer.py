@@ -5,8 +5,9 @@ import param
 import holoviews as hv
 from holoviews import streams
 
+from .utils import points_in_polygon
 try:
-    from matplotlib.path import Path
+    import scipy
 
     _GUI_ROI_SELECTION = True
 except ImportError:
@@ -582,8 +583,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             xv, yv = np.meshgrid(coordinates_xy[0], coordinates_xy[1])  # yx coordinates
             points = np.column_stack([xv.ravel(), yv.ravel()])
 
-            polygon = Path(lasso_xy)
-            mask = polygon.contains_points(points)
+            mask = points_in_polygon(points, lasso_xy)
             mask = mask.reshape((ny, nx))
             mask = xr.DataArray(
                 mask,
