@@ -32,8 +32,11 @@ class CustomJSFileInput(WidgetBase):
     # The file_input callback code that is used if panel.state._is_pyodide
     # This has to play nicely with the custom javascript / zarr / brimfile code from Carlo
     _pyodide_fileinput_callback = f"""
-        console.log("[js] Fileinput callback");
-        const file = event.target.files[0];
+        console.log("[js] file or folder input callback");
+        const fileList = event.target.files;
+        if(fileList.length === 0 ) return;
+        const files = Array.from(fileList);
+    
         //'model' can't be posted to the worker, so we have to find a different solution to notify the FileInput object
 
         // Set up a temporary message handler - We need to react to messages from the worker
@@ -43,7 +46,7 @@ class CustomJSFileInput(WidgetBase):
 
             // Constructing the message to be sent to python / the backend
             let msg_to_py;
-            if (msg.type === "file_loaded") {{
+            if (msg.type === "file_loaded" || msg.type === "folder_loaded") {{
                 msg_to_py = ({{ {JsPyMessage.TYPE.value}: "{JsPyMessage.FILE_LOADED.value}" }});
             }} else {{
                 msg_to_py = ({{ {JsPyMessage.TYPE.value}: "{JsPyMessage.ERROR.value}", {JsPyMessage.ERROR_DETAILS.value}: msg.type }});
@@ -57,8 +60,16 @@ class CustomJSFileInput(WidgetBase):
             }};
         pyodideWorker.addEventListener("message", onPyodideMessage, {{ once: true }});
 
-        console.log("Sending 'load_file' message to Pyodide worker");
-        pyodideWorker.postMessage({{type: "load_file", file: file}});
+        if(files.length === 1 && files[0].name.endsWith('.zip')) {{
+            console.log("Sending zip file");
+            pyodideWorker.postMessage({{type: "load_file", file: files[0]}});
+        }} else {{
+            console.log("Sending folder structure to Pyodide worker");
+            pyodideWorker.postMessage({{type: "load_file", file: files}});
+        }}
+     
+
+
     """
 
     # the file_input callback that is used if we're running in `panel serve`
@@ -84,13 +95,12 @@ class CustomJSFileInput(WidgetBase):
 
     def __init__(self, **params):
         super().__init__(**params)
-        self.update_function = None  # Placeholder for the update function
-
+        self.update_function = None  # Placeholder for the update function 
         # Invisible HTML file input button
         self._html_button_id = "fileElem"
         self._html_button = pn.pane.HTML(
             f"""
-            <input type="file" id="{self._html_button_id}" multiple accept="*" />
+            <input type="file" id="{self._html_button_id}" webkitdirectory directory multiple/>
             """
         )
         self._html_button.visible = False
@@ -192,7 +202,7 @@ class CustomJSFileInput(WidgetBase):
 
     def __panel__(self):
         return pn.Card(
-            pn.pane.HTML('Currently <strong>only .zip files</strong> are supported. See <a href="https://prevedel-lab.github.io/brimfile/brimfile.html#store-types" target="_blank" rel="noopener noreferrer">documentation</a> to know how to generate a .zip file.'), 
+            pn.pane.HTML('See <a href="https://prevedel-lab.github.io/brimfile/brimfile.html#store-types" target="_blank" rel="noopener noreferrer">documentation</a> for supported formats.'), 
             pn.FlexBox(self._html_button, self._panel_button),
             title="Local data",
             margin=5,
