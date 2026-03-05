@@ -3,6 +3,7 @@ import subprocess
 import pathlib
 import re
 import shutil
+import sys
 
 from importlib.metadata import version
 import warnings
@@ -18,6 +19,35 @@ def check_panel_version():
             warnings.warn(f"Panel version {panel_version} was not tested, it might not work as expected")
     else:
         raise ValueError(f"Panel version {panel_version} is not supported")
+
+def build_local_widgets_wheel(widgets_project_dir, output_dir):
+    widgets_project_path = pathlib.Path(widgets_project_dir)
+    if not widgets_project_path.exists():
+        raise FileNotFoundError(f"Widgets project directory not found: {widgets_project_path}")
+
+    dist_dir = widgets_project_path / "dist"
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+
+    print(f">> Building BrimView-widgets wheel from {widgets_project_path}...")
+    subprocess.run([sys.executable, "-m", "build", "--wheel"], cwd=widgets_project_path, check=True)
+
+    wheels = sorted(dist_dir.glob("*.whl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not wheels:
+        raise RuntimeError(f"No wheel was built in {dist_dir}")
+    wheel_path = wheels[0]
+
+    output_path = pathlib.Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    destination = output_path / wheel_path.name
+    shutil.copy2(wheel_path, destination)
+    print(f">> Copied local widget wheel to {destination}")
+
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+        print(f">> Removed build artifacts in {dist_dir}")
+
+    return wheel_path.name
     
 def generate_mock_package_injection(inject_mock_packages):
     lines = []
@@ -82,9 +112,7 @@ def replace_pyodide_import(js_code, new_version):
 
 # region === Settings ===
 inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
-overwrite_package_path = [
-    ("brimview_widgets", "js.toAbsoluteUrl('./brimview_widgets-0.3.3-py3-none-any.whl')"),
-]
+widgets_project_dir = "./BrimView-widgets"
 project_file = "./src/index.py"
 src_zarr_file = f"./src/zarr_file.js"
 no_jspi_file = "./src/no_jspi.html"
@@ -103,6 +131,12 @@ pyodide_version = "0.28.2"  # Specify the desired Pyodide version, it should mat
 
 # make sure we are running a supported panel version
 check_panel_version()
+
+# Build local brimview-widgets wheel and point the worker to the generated filename
+widgets_wheel_name = build_local_widgets_wheel(widgets_project_dir, output_dir)
+overwrite_package_path = [
+    ("brimview_widgets", f"js.toAbsoluteUrl('./{widgets_wheel_name}')"),
+]
 
 # Determine output JS filename from project_file
 worker_script = f"{output_dir}/{pathlib.Path(project_file).with_suffix('.js').name}"
