@@ -125,7 +125,7 @@ injection_function= "self.toAbsoluteUrl = function(relativePath, baseUrl = self.
 fileinput_clause = " else if (msg.type === 'load_file') {console.log('[From worker - got \"load_file\" msg]'); loadZarrFile(msg.file); self.postMessage({ type: 'file_loaded'});} "
 
 use_compiled_flag = True  # Set to True if you want to use the compiled version of Pyodide (faster but harder to debug and with some limitations, see https://github.com/pyodide/pyodide/issues/3269 )
-pyodide_version = "0.28.2"  # Specify the desired Pyodide version, it should match the one used by the current version of panel convert
+pyodide_version = "0.29.3"  # Specify the desired Pyodide version, it should match the one used by the current version of panel convert
 
 # endregion 
 
