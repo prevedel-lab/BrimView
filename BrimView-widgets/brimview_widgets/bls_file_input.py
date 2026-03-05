@@ -210,28 +210,26 @@ class BlsFileInput(WidgetBase, PyComponent):
             self.data_group_index_widget.disabled = True
             self.param.data_group.objects = {}
             self.data_group = None
-
         else:
             logger.info("Parsing bls_file")
+            logger.info(self.bls_file.list_data_groups())
             self.datagroup_selector_widget.disabled = False
             self.data_group_index_widget.disabled = False
 
-            # Making sure the returned list is sorted by index
+            # Make sure list is sorted by index
             cleaned_data_group_list = {}
-            # the list is laready ordered by index
             data_groups = self.bls_file.list_data_groups(retrieve_custom_name=True)
             for data in data_groups:
                 cleaned_data_group_list[data["custom_name"]] = data["index"]
 
-            # Using newly retrieved data groups
             self.param.data_group.objects = cleaned_data_group_list
-            self.data_group_index_widget.end = len(cleaned_data_group_list) - 1
+            self.data_group_index_widget.end = max(len(cleaned_data_group_list) - 1, 0)
             self.data_group_index_widget.start = 0
 
-            logger.debug(f"Data groups: {cleaned_data_group_list.values()}")
-            self.data_group = list(cleaned_data_group_list.values())[0]
-
-            if len(cleaned_data_group_list) == 1:  # small GUI bonus
+            if cleaned_data_group_list:
+                self.data_group = list(cleaned_data_group_list.values())[0]
+            else:
+                self.data_group = None
                 self.datagroup_selector_widget.disabled = True
                 self.data_group_index_widget.disabled = True
 
