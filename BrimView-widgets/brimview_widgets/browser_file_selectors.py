@@ -97,27 +97,27 @@ class CustomJSFileInput(WidgetBase):
         super().__init__(**params)
         self.update_function = None  # Placeholder for the update function 
         # Invisible HTML file input button
-        self._html_button_id = "fileElem"
+        self._html_file_button_id = "fileElem"
+        self._html_folder_button_id = "folderElem"
         self._html_button = pn.pane.HTML(
             f"""
-            <input type="file" id="{self._html_button_id}" webkitdirectory directory multiple/>
+            <input type="file" id="{self._html_folder_button_id}" webkitdirectory directory multiple/>
+            <input type="file" id="{self._html_file_button_id}" accept=".zip"/>
             """
         )
         self._html_button.visible = False
 
         # Standard panel button
         # Clicking on it triggers file_input.click()
-        self._panel_button = pn.widgets.Button(name="Load a file", button_type="primary", width=200)
+        self._panel_button_zip = pn.widgets.Button(name="Load a .zip file", button_type="primary", width=200)
+        self._panel_button_zarr = pn.widgets.Button(name="Load a .zarr folder", button_type="primary", width=200)
         self.apply_jscallback()
 
     def apply_jscallback(self):
         logger.info("Updating callback of the panel button")
-        self._panel_button.jscallback(
-            clicks=f"""
-            console.log("test") ;
-             let file_input = Bokeh.index.query_one((view) => view.model.id == html_file_input.id).el.shadowRoot.getElementById("{self._html_button_id}");
-             console.log(file_input) ;
-            
+        def js_code_onclick(button_id):
+            return f"""
+             let file_input = Bokeh.index.query_one((view) => view.model.id == html_file_input.id).el.shadowRoot.getElementById("{button_id}");
              file_input.addEventListener("change", async (event) => {{
                  { self._pyodide_fileinput_callback if running_from_pyodide else self._fileinput_callback }
              }}, 
@@ -125,7 +125,13 @@ class CustomJSFileInput(WidgetBase):
 
             file_input.click() ;
             console.log("Forwarding click to the proper file_input html button")
-            """,
+            """
+        self._panel_button_zip.jscallback(
+            clicks=js_code_onclick(self._html_file_button_id),
+            args={"html_file_input": self._html_button, "py_item": self},
+        )
+        self._panel_button_zarr.jscallback(
+            clicks=js_code_onclick(self._html_folder_button_id),
             args={"html_file_input": self._html_button, "py_item": self},
         )
 
@@ -203,7 +209,7 @@ class CustomJSFileInput(WidgetBase):
     def __panel__(self):
         return pn.Card(
             pn.pane.HTML('See <a href="https://prevedel-lab.github.io/brimfile/brimfile.html#store-types" target="_blank" rel="noopener noreferrer">documentation</a> for supported formats.'), 
-            pn.FlexBox(self._html_button, self._panel_button),
+            pn.FlexBox(self._html_button, self._panel_button_zip, self._panel_button_zarr),
             title="Local data",
             margin=5,
         )
