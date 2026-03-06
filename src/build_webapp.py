@@ -114,7 +114,6 @@ def replace_pyodide_import(js_code, new_version):
 inject_mock_packages = [("zarr", "3.1.2"), ("bokeh-sampledata","2025.0")]
 widgets_project_dir = "./BrimView-widgets"
 project_file = "./src/index.py"
-src_zarr_file = f"./src/zarr_file.js"
 no_jspi_file = "./src/no_jspi.html"
 output_dir = "pyodide"
 
@@ -219,11 +218,7 @@ html_path.write_text(text)
 
 # region ===== Step 4: Copy additional files to the output folder
 
-# === Step 4.1: Copy zarr_file.js to output folder
-print(">> Copying zarr_file.js to output folder...")
-shutil.copy2(src_zarr_file, output_dir)
-
-# === Step 4.2: Copy no_jspi.html to output folder
+# === Step 4.1: Copy no_jspi.html to output folder
 print(">> Copying no_jspi.html to output folder...")
 shutil.copy2(no_jspi_file, output_dir)
 

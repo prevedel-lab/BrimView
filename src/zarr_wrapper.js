@@ -1,4 +1,4 @@
-import { ZarrFile, init_file } from './zarr_file.js';
+import { ZarrFile, init_file } from "https://cdn.jsdelivr.net/gh/prevedel-lab/brimfile@main/src/js/zarr_file.js";
 
 // Loads the Zarr and create a bls_file in the globals of pyodide
 function loadZarrFile(file) {
