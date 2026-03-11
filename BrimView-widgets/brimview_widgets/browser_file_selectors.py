@@ -62,7 +62,7 @@ class CustomJSFileInput(WidgetBase):
 
         if(files.length === 1 && files[0].name.endsWith('.zip')) {{
             console.log("Sending zip file");
-            pyodideWorker.postMessage({{type: "load_file", file: files[0]}});
+            pyodideWorker.postMessage({{type: "load_file", file: files}});
         }} else {{
             console.log("Sending folder structure to Pyodide worker");
             pyodideWorker.postMessage({{type: "load_file", file: files}});
