@@ -5,6 +5,11 @@ on:
     tags:
       - '*'   # runs on any tag push
   workflow_dispatch:    # <-- allows manual runs for testing
+    inputs:
+      release_tag:
+        description: "Optional: input the name of the release. Leave empty to use the latest existing tag."
+        required: false
+        default: ""
 
 # security: restrict permissions for CI jobs.
 permissions:
@@ -64,6 +69,31 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release tag
+        id: release_tag
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            manual_tag="${{ github.event.inputs.release_tag }}"
+            if [[ -n "$manual_tag" ]]; then
+              resolved_tag="$manual_tag"
+            else
+              # Pick the highest version-like tag (e.g. v1.10.0 > v1.9.9).
+              resolved_tag="$(git tag --sort=-v:refname | head -n 1)"
+              if [[ -z "$resolved_tag" ]]; then
+                echo "No tags found, falling back to ${GITHUB_REF_NAME}."
+                resolved_tag="${GITHUB_REF_NAME}"
+              fi
+            fi
+          else
+            resolved_tag="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=$resolved_tag" >> "$GITHUB_OUTPUT"
+
       - name: Download build artifacts
         uses: actions/download-artifact@v5
         with:
@@ -80,7 +110,7 @@ jobs:
           files: |
             artifacts/*/*.zip
             artifacts/*/*.tar.gz
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: Release ${{ steps.release_tag.outputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
