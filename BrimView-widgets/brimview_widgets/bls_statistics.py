@@ -283,6 +283,7 @@ class BlsStatistics(WidgetBase, PyComponent):
                     for i in range(len(quantities))
                 ]
                 mean_value = np.mean(values)
+                median_value = np.median(values)
                 std_value = np.std(values)
                 logger.debug(
                     f"Average {quantity_name} ({peak_name}): {mean_value:.3f} ± {std_value:.3f}"
@@ -291,6 +292,7 @@ class BlsStatistics(WidgetBase, PyComponent):
                     "Peak": peak_name,
                     "Quantity": quantity_name,
                     "Mean": mean_value,
+                    "Median": median_value,
                     "Std": std_value,
                     "Units": quantities[0][quantity_name][peak_name].units,
                 }
@@ -357,6 +359,7 @@ class BlsStatistics(WidgetBase, PyComponent):
                 "Peak": ["Peak placeholder"],
                 "Quantity": ["Quantity placeholder"],
                 "Mean": [0.0],
+                "Median": [0.0],
                 "Std": [1.0],
                 "Units": ["Units placeholder"],
             }
@@ -374,6 +377,7 @@ class BlsStatistics(WidgetBase, PyComponent):
             },
             formatters={
                 "Mean": ScientificFormatter(precision=3),
+                "Median": ScientificFormatter(precision=3),
                 "Std": ScientificFormatter(precision=3),
             },
             layout="fit_columns",
