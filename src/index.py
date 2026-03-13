@@ -227,6 +227,9 @@ def build_ui():
     bls_metadata_widget = brimview_widgets.BlsMetadata(value=FileSelector.param.data)
     main_tabs.append(("Metadata", bls_metadata_widget))
 
+    bls_zarr_info_widget = brimview_widgets.BlsZarrInfo(value=FileSelector.param.data)
+    main_tabs.append(("Zarr info (debug)", bls_zarr_info_widget))
+
     # === UI Bug workaround ===
     # Without this, when the tabulator gets data, it comes to the top of the DOM,
     # even if it's in the non-active tab.

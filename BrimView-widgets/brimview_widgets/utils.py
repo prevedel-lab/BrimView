@@ -88,6 +88,7 @@ def catch_and_notify(duration=4000, notification_type="error", prefix=""):
                     return await func(*args, **kwargs)
                 except Exception as e:
                     msg = f"{prefix}{type(e).__name__}: {str(e)}"
+                    logger.error(msg)
                     getattr(pn.state.notifications, notification_type)(msg, duration=duration)
                     return None
             return async_wrapper
@@ -98,6 +99,7 @@ def catch_and_notify(duration=4000, notification_type="error", prefix=""):
                     return func(*args, **kwargs)
                 except Exception as e:
                     msg = f"{prefix}{type(e).__name__}: {str(e)}"
+                    logger.error(msg)
                     getattr(pn.state.notifications, notification_type)(msg, duration=duration)
                     return None
             return sync_wrapper
