@@ -4,6 +4,7 @@ from .logging import logger
 from .bls_types import bls_param
 
 import panel as pn
+import panel_material_ui as pmui
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 from bokeh.models.widgets.tables import ScientificFormatter
@@ -337,8 +338,8 @@ class BlsStatistics(WidgetBase, PyComponent):
         }
         self.spinner.align = ("end", "center")
         self.spinner.margin = (10, 30)
-        header = pn.FlexBox(
-            pn.Row(
+        header = pmui.FlexBox(
+            pmui.Row(
                 pn.pane.HTML(**params),
                 pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
             ),
@@ -349,7 +350,7 @@ class BlsStatistics(WidgetBase, PyComponent):
             justify_content="space-between",
         )
         card.header = header
-        card._header_layout.styles = {"width": "inherit"}
+        #card._header_layout.styles = {"width": "inherit"}
 
     def placeholder_dataframe(
         self,
@@ -403,7 +404,7 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     def __panel__(self):
         """Create Panel layout for the statistics widget."""
-        card = pn.Card(
+        card = pmui.Card(
             self.mask_status,
             self.tqdm,
             self.spectrum_plot_widget,

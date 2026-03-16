@@ -1,4 +1,5 @@
 import panel as pn
+import panel_material_ui as pmui
 import param
 import pandas as pd
 
@@ -67,7 +68,7 @@ else if (v === "unknown field" || v === "likely typo") {
                 )
             },
         )
-        self.title = pn.pane.Markdown("## Metadata of the file \n Please load a file")
+        self.title = pmui.Markdown("## Metadata of the file \n Please load a file")
         super().__init__(**params)
 
         logger.info("BlsMetadata initialized")
@@ -129,4 +130,4 @@ else if (v === "unknown field" || v === "likely typo") {
         self.tabulator.visible = value
 
     def __panel__(self):
-        return pn.Column(self.title, self.tabulator)
+        return pmui.Column(self.title, self.tabulator)

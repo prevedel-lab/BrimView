@@ -7,6 +7,7 @@ from brimview_widgets.environment import running_from_pyodide
 import brimfile as bls  # Force import of brimfile
 
 import panel as pn
+import panel_material_ui as pmui
 import holoviews as hv
 import xarray as xr  # Force import of xarray
 import scipy
@@ -28,6 +29,30 @@ pn.extension(
 """
     ]
 )
+
+mui_theme_config = {
+            "typography": {
+                "fontSize": 12,
+                "h3": {"fontSize": 5},
+            },  # Card header titles
+            "palette": {
+                #"primary": {"main": "#d219c9"},
+            },
+            "components": {
+                "MuiCardHeader": {
+                    "styleOverrides": {
+                        "root": {
+                            "backgroundColor": "#e0e0e0",  # light gray
+                            "padding": "5px 5px"
+                        },
+                        "title": {"h3": {"fontSize": 10}},
+                    }
+                },
+                "MuiTypography": {
+                    "styleOverrides": {"h3": {"fontSize": 50, "fontWeight": 500}}
+                },
+            },
+        }
 
 # --- Usefull debug prints ---
 logger.info("Starting Brimview...")
@@ -58,9 +83,10 @@ def parse_query_params(file_widget: "brimview_widgets.TinkerFileSelector"):
 # The things we need
 # See: https://github.com/holoviz/panel/issues/7913#issuecomment-2880177999
 # See: https://panel.holoviz.org/explanation/styling/templates_overview.html
-sidebar = pn.layout.FlexBox()
-main_tabs = pn.Tabs(
+sidebar = pmui.FlexBox(theme_config=mui_theme_config)
+main_tabs = pmui.Tabs(
     sizing_mode="stretch_width",
+    theme_config=mui_theme_config
 )
 
 # Adding a github icon linking to the project in the header
@@ -69,10 +95,10 @@ github_icon = pn.pane.HTML(
     '<img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="24" height="24" style="vertical-align: middle;">'
     "</a>",
 )
-header_row = pn.Row(pn.layout.HSpacer(), github_icon)
+header_row = pmui.Row(pn.layout.HSpacer(), github_icon)
 
-data_protection = pn.Row(
-    pn.Card(
+data_protection = pmui.Row(
+    pmui.Card(
         pn.pane.HTML(
             "When you upload a file from your computer, it is processed <b>locally in your browser</b> and <b>never sent to any server</b>."
         ),
@@ -87,8 +113,8 @@ _running_from_docker = brimview_widgets.environment.is_running_from_docker()
 if _running_from_docker:
     data_protection = None
 
-credits = pn.Row(
-    pn.Card(
+credits = pmui.Row(
+    pmui.Card(
         pn.pane.HTML(
             "If you encounter any issue, please open a <a href='https://github.com/prevedel-lab/BrimView/issues'>GitHub issue</a>."
         ),
@@ -176,8 +202,8 @@ def build_ui():
             )
         )
 
-        file_widget = pn.layout.FlexBox(
-            pn.Card(s3_file_selector, title="S3 online data", margin=5),
+        file_widget = pmui.FlexBox(
+            pmui.Card(s3_file_selector, title="S3 online data", margin=5),
         )
 
         # Creating the treatment widget
@@ -216,9 +242,9 @@ def build_ui():
     DataVisualizer = brimview_widgets.BlsDataVisualizer(FileSelector)
     spectrum_visualizer = brimview_widgets.BlsSpectrumVisualizer(DataVisualizer)
     statistics_widget = brimview_widgets.BlsStatistics(DataVisualizer)
-    brim_visualizer = pn.layout.Row(
-        pn.layout.FlexBox(DataVisualizer, margin=10),
-        pn.layout.FlexBox(spectrum_visualizer, statistics_widget, margin=10, gap="10px"),
+    brim_visualizer = pmui.Row(
+        pmui.FlexBox(DataVisualizer, margin=10),
+        pmui.FlexBox(spectrum_visualizer, statistics_widget, margin=10, gap="10px"),
         sizing_mode="stretch_width",
     )
     main_tabs.append((".brim Visualizer", brim_visualizer))

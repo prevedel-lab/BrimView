@@ -1,4 +1,6 @@
 import panel as pn
+import panel_material_ui as pmui
+
 import param
 import pandas as pd
 import brimfile as bls
@@ -111,13 +113,17 @@ class BlsFileInput(WidgetBase, PyComponent):
             title = self.bls_file.filename
 
         self._header = pn.FlexBox(
-            pn.pane.Markdown(f"### {title}"),
+            pn.pane.HTML(f"<h3>{title}</h3>"),
             self.spinner,
             align_content="space-between",
             align_items="center",  # Vertical-ish
             sizing_mode="stretch_width",
             justify_content="space-between",
         )
+
+        if hasattr(self, "_card"):
+            self._card.header = self._header
+            #self._card._header_layout.styles = {"width": "inherit"}
 
     @catch_and_notify(prefix="<b>Loading file: </b>")
     def external_file_update(self, file: bls.File):
@@ -298,11 +304,23 @@ class BlsFileInput(WidgetBase, PyComponent):
                 button_style="outline",
             )
 
-        self._update_header()
-        return pn.Column(
-            self._header,
-            rw_toggle,
+        #self._update_header()
+        card_items = [
             self.datagroup_selector_widget,
             self.data_group_index_widget,
             self.parameter_selector_widget,
+        ]
+        if rw_toggle is not None:
+            card_items.insert(0, rw_toggle)
+
+        card_content = pmui.Column(*card_items, sizing_mode="stretch_width")
+        self._card = pmui.Card(
+            card_content,
+            title=self.name,
+            collapsible=False,
+            margin=5,
+            sizing_mode="stretch_width",
         )
+        #self._card.header = self._header
+        #self._card._header_layout.styles = {"width": "inherit"}
+        return self._card

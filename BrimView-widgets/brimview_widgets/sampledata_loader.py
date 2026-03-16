@@ -1,4 +1,5 @@
 import panel as pn
+import panel_material_ui as pmui
 
 from .utils import catch_and_notify
 from .environment import running_from_pyodide
@@ -26,14 +27,14 @@ class SampledataLoader(pn.viewable.Viewer):
         super().__init__(**params)
         
         # S3 link input
-        self.sampledata_load_button = pn.widgets.Button(
-            name="Load sample", button_type="primary", width=200
+        self.sampledata_load_button = pmui.Button(
+            name="Load sample", button_type="primary"
         )
         self.sampledata_load_button.on_click(self._load_s3_file)
-        self.s3_link = pn.widgets.Select(
+        self.s3_link = pmui.Select(
             name='Dataset', 
             options=list(self._sampledata.keys()),
-            width=300)
+            )
 
     @catch_and_notify(prefix="<b>Load S3 file: </b>")
     def _load_s3_file(self, event):
@@ -57,11 +58,11 @@ class SampledataLoader(pn.viewable.Viewer):
         self.process_path_fn = func
 
     def __panel__(self):
-        return pn.Card(
-            pn.layout.FlexBox(self.s3_link, self.sampledata_load_button),
+        return pmui.Card(
+            pmui.FlexBox(self.s3_link, self.sampledata_load_button),
             title="Sample data",
             collapsed=True,
             collapsible=True,
             sizing_mode="stretch_width",
-            margin=5
+            margin=(5,0)
         )

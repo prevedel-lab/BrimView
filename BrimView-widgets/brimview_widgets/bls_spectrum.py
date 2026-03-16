@@ -3,6 +3,7 @@ from enum import Enum
 import tempfile
 import pandas as pd
 import panel as pn
+import panel_material_ui as pmui
 import param
 import holoviews as hv
 from holoviews import streams
@@ -85,7 +86,7 @@ class FitParam(pn.viewable.Viewer):
         )
         self.process = self._process_switch.param.value
 
-        self._model_dropdown = pn.widgets.Select.from_param(self.param.model, width=200)
+        self._model_dropdown = pmui.Select.from_param(self.param.model, width=200)
 
         self._table = pn.widgets.Tabulator(
             self._default_dataframe(),
@@ -130,7 +131,7 @@ class FitParam(pn.viewable.Viewer):
             visible = False
         )
 
-        self._reset_button = pn.widgets.Button(
+        self._reset_button = pmui.Button(
             name="Reset constraints", button_type="primary", visible=False
         )
         self._reset_button.align = ("start", "end")
@@ -201,9 +202,9 @@ class FitParam(pn.viewable.Viewer):
         self._table.visible = True
 
     def __panel__(self):
-        return pn.Card(
+        return pmui.Card(
             self._process_switch,
-            pn.Row(self._model_dropdown, self._reset_button),
+            pmui.Row(self._model_dropdown, self._reset_button),
             self._table,
             title=self.name,
             margin=5,
@@ -409,8 +410,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         }
         self.spinner.align = ("end", "center")
         self.spinner.margin = (10, 30)
-        header = pn.FlexBox(
-            pn.Row(
+        header = pmui.FlexBox(
+            pmui.Row(
                 pn.pane.HTML(**params),
                 pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
             ),
@@ -421,7 +422,7 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
             justify_content="space-between",
         )
         card.header = header
-        card._header_layout.styles = {"width": "inherit"}
+        #card._header_layout.styles = {"width": "inherit"}
 
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
         logger.info(f"Computing fitted curves at ({time.time()})")
@@ -804,14 +805,14 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
     def __panel__(self):
 
-        card = pn.Card(
+        card = pmui.Card(
             pn.pane.HoloViews(
                 self.plot_spectrum,
                 height=300,  # Not the greatest solution
                 sizing_mode="stretch_width",
             ),
-            pn.widgets.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
-            pn.FlexBox(self.auto_refit, self.saved_fit),
+            pmui.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
+            pmui.FlexBox(self.auto_refit, self.saved_fit),
             sizing_mode="stretch_height",
         )
 
