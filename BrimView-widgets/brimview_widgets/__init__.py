@@ -11,7 +11,6 @@ from .bls_metadata import BlsMetadata
 from .debug_report_widget import DebugReport
 from .environment import running_from_pyodide
 from .bls_statistics import BlsStatistics
-from .bls_zarr_info import BlsZarrInfo
 
 # Keep treatment widget out of the wasm package
 if running_from_pyodide:
@@ -21,3 +20,4 @@ else:
     from .browser_file_selectors import CustomJSFileInput
     from .local_file_selectors import TinkerFileSelector
     from .bls_do_treatment import BlsDoTreatment
+    from .bls_zarr_info import BlsZarrInfo

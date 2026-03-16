@@ -24,7 +24,7 @@ from .logging import logger
 from panel.widgets.base import WidgetBase
 from panel.custom import PyComponent
 from .bls_types import bls_param
-from .widgets import SwitchWithLabels
+from .widgets import SwitchWithLabels, CustomPMuiCard
 
 from bokeh.models.widgets.tables import HTMLTemplateFormatter
 
@@ -246,8 +246,8 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
     results_at_point = param.Dict(label="Result values at this point", precedence=-1)
 
     def __init__(self, result_plot: BlsDataVisualizer, **params):
-        self.spinner = pn.indicators.LoadingSpinner(
-            value=False, size=20, name="Idle", visible=True
+        self.spinner = pmui.CircularProgress(
+            value=False, size=20, label="Idle", visible=True
         )
         self.bls_spectrum_in_image = None
         params["name"] = "Spectrum visualization"
@@ -388,41 +388,12 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
         """
         if self.loading:
             self.spinner.value = True
-            self.spinner.name = "Loading..."
+            self.spinner.label = "Loading..."
             self.spinner.visible = True
         else:
             self.spinner.value = False
-            self.spinner.name = "Idle"
+            self.spinner.label = "Idle"
             self.spinner.visible = True
-
-    def rewrite_card_header(self, card: pn.Card, tooltip: str = None):
-        """
-        Changes a bit how the header of the card is displayed.
-        We replace the default title by
-            [{self.name}     {spinner}]
-
-        With self.name to the left and spinner to the right
-        """
-        params = {
-            "object": f"<h3>{self.name}</h3>" if self.name else "&#8203;",
-            "css_classes": card.title_css_classes,
-            "margin": (5, 0),
-        }
-        self.spinner.align = ("end", "center")
-        self.spinner.margin = (10, 30)
-        header = pmui.FlexBox(
-            pmui.Row(
-                pn.pane.HTML(**params),
-                pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
-            ),
-            self.spinner,
-            align_content="space-between",
-            align_items="center",  # Vertical-ish
-            sizing_mode="stretch_width",
-            justify_content="space-between",
-        )
-        card.header = header
-        #card._header_layout.styles = {"width": "inherit"}
 
     def fitted_curves(self, x_range: np.ndarray, z, y, x):
         logger.info(f"Computing fitted curves at ({time.time()})")
@@ -805,16 +776,19 @@ class BlsSpectrumVisualizer(WidgetBase, PyComponent):
 
     def __panel__(self):
 
-        card = pmui.Card(
+        card = CustomPMuiCard(
             pn.pane.HoloViews(
                 self.plot_spectrum,
-                height=300,  # Not the greatest solution
-                sizing_mode="stretch_width",
+                #height=300,  # Not the greatest solution
+                #sizing_mode="stretch_width",
             ),
             pmui.FileDownload(callback=self.csv_export, filename="raw_data.csv"),
             pmui.FlexBox(self.auto_refit, self.saved_fit),
             sizing_mode="stretch_height",
+            title=self.name, 
+            spinner=self.spinner,
+            tooltip=self.tooltip
         )
 
-        self.rewrite_card_header(card, self.tooltip)
+        #self.rewrite_card_header(card, self.tooltip)
         return card

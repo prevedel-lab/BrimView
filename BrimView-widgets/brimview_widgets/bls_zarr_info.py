@@ -3,6 +3,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 import panel as pn
+import panel_material_ui as pmui
 import param
 import pandas as pd
 
@@ -19,7 +20,7 @@ import zarr
 from .utils import catch_and_notify
 from .logging import logger
 
-import panel_material_ui as pmui
+
 
 
 class BlsZarrInfo(WidgetBase, PyComponent):

@@ -2,6 +2,7 @@ from brimview_widgets.utils import catch_and_notify
 from .bls_data_visualizer import BlsDataVisualizer
 from .logging import logger
 from .bls_types import bls_param
+from .widgets import CustomPMuiCard
 
 import panel as pn
 import panel_material_ui as pmui
@@ -60,8 +61,8 @@ class BlsStatistics(WidgetBase, PyComponent):
     )
 
     def __init__(self, result_plot: BlsDataVisualizer, **params):
-        self.spinner = pn.indicators.LoadingSpinner(
-            value=False, size=20, name="Idle", visible=True
+        self.spinner = pmui.CircularProgress(
+            value=False, size=20, label="Idle", visible=True
         )
         params["name"] = "Group Statistics"
         self.tooltip = "Use the **Lasso Select** tool to select a region in the image. This widget will compute the average spectrum and other quantities for the selected region."
@@ -316,41 +317,12 @@ class BlsStatistics(WidgetBase, PyComponent):
         """
         if self.loading:
             self.spinner.value = True
-            self.spinner.name = "Loading..."
+            self.spinner.label = "Loading..."
             self.spinner.visible = True
         else:
             self.spinner.value = False
-            self.spinner.name = "Idle"
+            self.spinner.label = "Idle"
             self.spinner.visible = True
-
-    def rewrite_card_header(self, card: pn.Card, tooltip: str = None):
-        """
-        Changes a bit how the header of the card is displayed.
-        We replace the default title by
-            [{self.name}     {spinner}]
-
-        With self.name to the left and spinner to the right
-        """
-        params = {
-            "object": f"<h3>{self.name}</h3>" if self.name else "&#8203;",
-            "css_classes": card.title_css_classes,
-            "margin": (5, 0),
-        }
-        self.spinner.align = ("end", "center")
-        self.spinner.margin = (10, 30)
-        header = pmui.FlexBox(
-            pmui.Row(
-                pn.pane.HTML(**params),
-                pn.widgets.TooltipIcon(value=tooltip) if tooltip else pn.Spacer(),
-            ),
-            self.spinner,
-            align_content="space-between",
-            align_items="center",  # Vertical-ish
-            sizing_mode="stretch_width",
-            justify_content="space-between",
-        )
-        card.header = header
-        #card._header_layout.styles = {"width": "inherit"}
 
     def placeholder_dataframe(
         self,
@@ -404,13 +376,15 @@ class BlsStatistics(WidgetBase, PyComponent):
 
     def __panel__(self):
         """Create Panel layout for the statistics widget."""
-        card = pmui.Card(
+        card = CustomPMuiCard(
             self.mask_status,
             self.tqdm,
             self.spectrum_plot_widget,
             self.statistic_tabulator_widget,
-            title="BLS Statistics",
             sizing_mode="stretch_height",
+
+            title="BLS Statistics",
+            tooltip=self.tooltip, 
+            spinner=self.spinner
         )
-        self.rewrite_card_header(card, tooltip=self.tooltip)
         return card

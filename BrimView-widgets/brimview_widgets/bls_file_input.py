@@ -15,7 +15,7 @@ from panel.custom import PyComponent
 
 from .utils import catch_and_notify
 from .environment import is_running_from_docker, running_from_pyodide
-from .widgets import HorizontalEditableIntSlider
+from .widgets import HorizontalEditableIntSlider, CustomPMuiCard
 from .logging import logger
 
 
@@ -314,13 +314,11 @@ class BlsFileInput(WidgetBase, PyComponent):
             card_items.insert(0, rw_toggle)
 
         card_content = pmui.Column(*card_items, sizing_mode="stretch_width")
-        self._card = pmui.Card(
-            card_content,
-            title=self.name,
+        self._card = CustomPMuiCard(            card_content,
+            
             collapsible=False,
             margin=5,
             sizing_mode="stretch_width",
+            title=self.name,
         )
-        #self._card.header = self._header
-        #self._card._header_layout.styles = {"width": "inherit"}
         return self._card

@@ -4,6 +4,7 @@ import panel_material_ui as pmui
 from .utils import catch_and_notify
 from .environment import running_from_pyodide
 from .logging import logger
+from .widgets import CustomPMuiCard
 
 class SampledataLoader(pn.viewable.Viewer):
 
@@ -58,7 +59,7 @@ class SampledataLoader(pn.viewable.Viewer):
         self.process_path_fn = func
 
     def __panel__(self):
-        return pmui.Card(
+        return CustomPMuiCard(
             pmui.FlexBox(self.s3_link, self.sampledata_load_button),
             title="Sample data",
             collapsed=True,

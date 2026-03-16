@@ -135,6 +135,7 @@ check_panel_version()
 widgets_wheel_name = build_local_widgets_wheel(widgets_project_dir, output_dir)
 overwrite_package_path = [
     ("brimview_widgets", f"js.toAbsoluteUrl('./{widgets_wheel_name}')"),
+    ("brimfile", f"js.toAbsoluteUrl('./brimfile-1.4.2-py3-none-any.whl')"),
 ]
 
 # Determine output JS filename from project_file

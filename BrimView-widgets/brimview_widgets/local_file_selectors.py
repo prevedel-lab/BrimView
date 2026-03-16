@@ -15,6 +15,7 @@ from .s3file_selector import S3FileSelector
 
 from .utils import catch_and_notify
 from .logging import logger
+from .widgets import CustomPMuiCard
 
 
 def load_file_dialog() -> str | None:
@@ -157,7 +158,7 @@ class TinkerFileSelector(pn.viewable.Viewer):
     def __panel__(self):
 
         if not _running_from_docker:
-            local_data_widget = pmui.Card(
+            local_data_widget = CustomPMuiCard(
                 self.filedialog_button,
                 self.dragNdrop_button,
                 title="Local data",
@@ -165,7 +166,7 @@ class TinkerFileSelector(pn.viewable.Viewer):
                 margin=5,
             )
         else:
-            local_data_widget = pmui.Card(
+            local_data_widget = CustomPMuiCard(
                 pn.pane.HTML(
                     "<a href='https://biobrillouin.org/brimview-local/'>Load in-browser version</a>"
                 ),
@@ -176,12 +177,11 @@ class TinkerFileSelector(pn.viewable.Viewer):
 
         return pmui.FlexBox(
             local_data_widget,
-            pmui.Card(
+            CustomPMuiCard(
                 self.s3FileSelector,
                 title="S3 online data",
                 collapsed=True,
                 sizing_mode="stretch_width",
             ),
             sizing_mode="stretch_width",
-            #theme_config=self.theme_config,
         )

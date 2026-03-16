@@ -39,17 +39,27 @@ mui_theme_config = {
                 #"primary": {"main": "#d219c9"},
             },
             "components": {
+                "MuiCard": {
+                    "defaultProps": {
+                        "raised": True
+                    }
+                },
                 "MuiCardHeader": {
+                    "defaultProps": {
+                        "padding": 0,
+                    },
+                    "action": {
+                        "padding": 0
+                    },
                     "styleOverrides": {
                         "root": {
                             "backgroundColor": "#e0e0e0",  # light gray
-                            "padding": "5px 5px"
+                            "padding": 0
                         },
-                        "title": {"h3": {"fontSize": 10}},
                     }
                 },
-                "MuiTypography": {
-                    "styleOverrides": {"h3": {"fontSize": 50, "fontWeight": 500}}
+                "MuiTypography": { # Affects pmui.Typography. Used in the card headers
+                    "styleOverrides": {"h3": {"fontSize": 17, "fontWeight": 500}}
                 },
             },
         }
@@ -232,6 +242,9 @@ def build_ui():
         else:
             TreamentWidget = brimview_widgets.BlsDoTreatment(FileSelector)
         
+        bls_zarr_info_widget = brimview_widgets.BlsZarrInfo(value=FileSelector.param.data)
+        main_tabs.append(("Zarr info (debug)", bls_zarr_info_widget))
+        
     
     analyser_placeholder.append(TreamentWidget)
 
@@ -253,8 +266,7 @@ def build_ui():
     bls_metadata_widget = brimview_widgets.BlsMetadata(value=FileSelector.param.data)
     main_tabs.append(("Metadata", bls_metadata_widget))
 
-    bls_zarr_info_widget = brimview_widgets.BlsZarrInfo(value=FileSelector.param.data)
-    main_tabs.append(("Zarr info (debug)", bls_zarr_info_widget))
+
 
     # === UI Bug workaround ===
     # Without this, when the tabulator gets data, it comes to the top of the DOM,

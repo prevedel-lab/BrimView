@@ -23,7 +23,7 @@ from .logging import logger
 import brimfile as bls
 from .bls_file_input import BlsFileInput
 from .utils import only_on_change, catch_and_notify
-from .widgets import HorizontalEditableIntSlider
+from .widgets import HorizontalEditableIntSlider, CustomPMuiCard
 import colorcet as cc
 import pandas as pd
 
@@ -145,8 +145,8 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
 
     def __init__(self, Bh5file: BlsFileInput, **params):
 
-        self.spinner = pn.indicators.LoadingSpinner(
-            value=False, size=20, name="Idle", visible=True
+        self.spinner = pmui.CircularProgress(
+            value=False, size=20, label="Idle", visible=True
         )
 
         # Bh5file.param.watch(self._update_data, ["data"])
@@ -188,41 +188,12 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         with param.parameterized.batch_call_watchers(self.spinner):
             if self.loading:
                 self.spinner.value = True
-                self.spinner.name = "Loading..."
+                self.spinner.label = "Loading..."
                 self.spinner.visible = True
             else:
                 self.spinner.value = False
-                self.spinner.name = "Idle"
+                self.spinner.label = "Idle"
                 self.spinner.visible = True
-
-    def rewrite_card_header(self, card: pmui.Card):
-        """
-        Changes a bit how the header of the card is displayed.
-        We replace the default title by
-            [{self.name}     {spinner}]
-
-        With self.name to the left and spinner to the right
-        """
-        params = {
-            "object": f"<h3>{self.name}</h3>" if self.name else "&#8203;",
-            "css_classes": card.title_css_classes,
-            "margin": (5, 0),
-        }
-        self.spinner.align = ("end", "center")
-        self.spinner.margin = (10, 30)
-        header = pmui.FlexBox(
-            pn.pane.HTML(**params),
-            # self.spinner,
-            # pn.Spacer(),  # pushes next item to the right
-            self.spinner,
-            align_content="space-between",
-            align_items="center",  # Vertical-ish
-            sizing_mode="stretch_width",
-            justify_content="space-between",
-        )
-        # header.styles = {"place-content": "space-between"}
-        card.header = header
-        #card._header_layout.styles = {"width": "inherit"}
 
     @param.depends("bls_data", watch=True)
     @catch_and_notify(prefix="<b>File loading: </b>")
@@ -829,7 +800,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             callback=self.download_tiff,
         )
 
-        self.result_options = pmui.Card(
+        self.result_options = CustomPMuiCard(
             pmui.FlexBox(
                 self.result_index_dropdown,
                 self.result_quantity_dropdown,
@@ -857,7 +828,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             value_throttled=0.01,
             disabled=self.autoscale,
         )
-        rendering_options = pmui.Card(
+        rendering_options = CustomPMuiCard(
             pmui.FlexBox(
                 colormap_picker,
                 autoscale_checkbox,
@@ -892,7 +863,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
         )
         self.img_axis_3_slice_widget.tooltip_text = "Change which slice is displayed"
 
-        axis_options = pmui.Card(
+        axis_options = CustomPMuiCard(
             pmui.FlexBox(
                 # RadioButton has no working name
                 pmui.Select.from_param(self.param.img_axis_1, width=150),
@@ -912,12 +883,13 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             margin=5,
         )
 
-        main_card = pmui.Card(
+        main_card = CustomPMuiCard(
             pmui.Row(self.img_axis_3_slice_widget, align="center"),
             pn.pane.HoloViews(self._plot_masked_data, sizing_mode="stretch_width"),
             self.result_options,
             axis_options,
             rendering_options,
+            title = self.name, 
+            spinner = self.spinner
         )
-        self.rewrite_card_header(main_card)
         return main_card
