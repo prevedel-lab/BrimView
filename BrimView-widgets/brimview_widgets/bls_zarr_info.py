@@ -59,12 +59,15 @@ class BlsZarrInfo(WidgetBase, PyComponent):
         )
         self.dialog = pmui.Dialog(
             self.dialog_text,
-            pn.pane.Markdown("### Attributes"),
+            pn.Row(
+                pn.pane.Markdown("### Attributes"),
+                pn.widgets.TooltipIcon(value="This table shows the attributes of the selected Zarr node. If it's empty, try clicking on another node and then back on the original."),
+            ),            
             self.dialog_tabulator,
             open=False,
             close_on_click=True,
-            title="Node details",
-            show_close_button=True
+            title="Zarr node details",
+            show_close_button=True,
         )
 
         # Explicit annotation, because param and type hinting is not working properly
@@ -75,28 +78,27 @@ class BlsZarrInfo(WidgetBase, PyComponent):
     @catch_and_notify(prefix="<b>Zarr file size: </b>")
     def _size_widget(self):
         if self.value is None:
-            return pn.pane.Markdown("**Size on disk**: --- bytes")
+            return pn.pane.Markdown("")
 
         store = self.value._file._store
         size = sync(store.getsize_prefix("/"))
-        return pn.pane.Markdown(f"**Size on disk**: {size} bytes")
+        readable_size = bytes_human_string(size)
+        return pn.pane.Markdown(f"Reported file size: **{readable_size}** (= {size} bytes)")
 
-    @param.depends("value")
+    @param.depends("value", watch=True)
     @catch_and_notify(prefix="<b>Zarr file info: </b>")
     def _info_widget(self):
         if self.value is None:
             self.info_tabulator.value = None
-            return pn.pane.Markdown(f"**Info complete**: --- ")
-
+            return 
         root: zarr.Group = self.value._file._root
         group_info = sync(root.info_complete())
-        #gropu info is a dataclass
+        # gropu info is a dataclass
         self.info_tabulator.value = dict_to_tabulator_df(asdict(group_info))
-        return pn.pane.Markdown(f"**Info complete**")
 
     @param.depends("value")
     @catch_and_notify(prefix="<b>Update Zarr tree: </b>")
-    def _update_tree(self):
+    def _tree_widget(self):
         if self.value is None:
             return None
 
@@ -140,8 +142,9 @@ class BlsZarrInfo(WidgetBase, PyComponent):
         dict_tree = [asdict(node) for node in typed_tree]
         tree = pmui.Tree(
             items=dict_tree,
-            expanded=[(0,)],
-            sizing_mode="stretch_width",
+            expanded=[(0,), (0,0,), (0,0,0,)],
+            #sizing_mode="stretch_width",
+            width_policy="fit",
         )
 
         tree.on_action("Details", self._tree_details_callback)
@@ -152,17 +155,26 @@ class BlsZarrInfo(WidgetBase, PyComponent):
         dataframe = dict_to_tabulator_df(item["attributes"])
         self.dialog_tabulator.value = dataframe
         self.dialog_text.object = (
-            f"Clicked on {item['label']}."  # TODO: Display the absolute path
+            f"Clicked on node: _{item['label']}_."  # TODO: Display the absolute path
         )
         self.dialog.open = True
 
     def __panel__(self):
         return pn.Column(
             self.title,
-            self._update_tree,
             self._size_widget,
-            self._info_widget,
-            self.info_tabulator,            
+            pn.layout.Divider(height=10, margin=10),
+            pn.FlexBox(
+                pn.Column(
+                    pn.pane.Markdown("### Zarr file structure"),
+                    self._tree_widget,                    
+                ),
+                pn.Column(
+                    pn.pane.Markdown(f"### Zarr file info"),
+                    self.info_tabulator,
+                ),
+                sizing_mode="stretch_width",
+            ),
             self.dialog,
             sizing_mode="stretch_width",
         )
@@ -218,3 +230,10 @@ def dict_to_tabulator_df(data: dict) -> pd.DataFrame:
     walk(data)
 
     return pd.DataFrame(rows)
+
+def bytes_human_string(num_bytes):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if num_bytes < 1024.0:
+            return f"{num_bytes:.2f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.2f} PB"
