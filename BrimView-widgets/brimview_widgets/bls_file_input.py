@@ -15,7 +15,7 @@ from panel.custom import PyComponent
 
 from .utils import catch_and_notify
 from .environment import is_running_from_docker, running_from_pyodide
-from .widgets import HorizontalEditableIntSlider, CustomPMuiCard
+from .widgets import CustomPMuiCard
 from .logging import logger
 
 
@@ -44,20 +44,29 @@ class BlsFileInput(WidgetBase, PyComponent):
         params["name"] = "File input"
         super().__init__(**params)
 
-        self.spinner = pn.indicators.LoadingSpinner(
-            value=False, size=20, name="Idle", visible=True
+        self.spinner = pmui.CircularProgress(
+            value=False, size=20, label="Idle", visible=True
         )
 
-        self.datagroup_selector_widget = pn.widgets.Select.from_param(
-            self.param.data_group, name="Data Group", disabled=True
+        self.datagroup_selector_widget = pmui.Select.from_param(
+            self.param.data_group,
+            name="Data Group",
+            disabled=True,
+            sizing_mode="stretch_width",
         )
-        self.data_group_index_widget = HorizontalEditableIntSlider.from_param(
-            self.param.data_group_index, name="Index", disabled=True, throttled=True
+        self.data_group_index_widget = pmui.EditableIntSlider.from_param(
+            self.param.data_group_index,
+            name="Index",
+            disabled=True,
+            throttled=True,
+            sizing_mode="stretch_width",
+            #max_width=200,
+            width_policy="max"
         )  # Enabling throttling to avoid too many updates while sliding
-        self.data_group_index_widget.tooltip_text = (
-            "Change which data group is displayed"
-        )
-        self.data_group_index_widget.tooltip_range_or_fixed_range = True
+        # self.data_group_index_widget.tooltip_text = (
+        #     "Change which data group is displayed"
+        # )
+        # self.data_group_index_widget.tooltip_range_or_fixed_range = True
 
         def _link_index_to_group(event):
             if self.data_group_index is not None and self.data_group is not None:
@@ -75,8 +84,11 @@ class BlsFileInput(WidgetBase, PyComponent):
         pn.bind(_link_index_to_group, self.param.data_group_index, watch=True)
         pn.bind(_link_group_to_index, self.param.data_group, watch=True)
 
-        self.parameter_selector_widget = pn.widgets.Select.from_param(
-            self.param.data_parameter, name="Parameter", visible=False
+        self.parameter_selector_widget = pmui.Select.from_param(
+            self.param.data_parameter,
+            name="Parameter",
+            visible=False,
+            sizing_mode="stretch_width",
         )
 
     @pn.depends("loading", watch=True)
@@ -94,12 +106,12 @@ class BlsFileInput(WidgetBase, PyComponent):
             if self.loading:
                 logger.debug("Setting loading spinner to true")
                 self.spinner.value = True
-                self.spinner.name = "Loading..."
+                self.spinner.label = "Loading..."
                 self.spinner.visible = True
             else:
                 logger.debug("Setting loading spinner to false")
                 self.spinner.value = False
-                self.spinner.name = "Idle"
+                self.spinner.label = "Idle"
                 self.spinner.visible = True
 
     @pn.depends("bls_file", watch=True)
@@ -123,7 +135,7 @@ class BlsFileInput(WidgetBase, PyComponent):
 
         if hasattr(self, "_card"):
             self._card.header = self._header
-            #self._card._header_layout.styles = {"width": "inherit"}
+            # self._card._header_layout.styles = {"width": "inherit"}
 
     @catch_and_notify(prefix="<b>Loading file: </b>")
     def external_file_update(self, file: bls.File):
@@ -296,15 +308,15 @@ class BlsFileInput(WidgetBase, PyComponent):
         if running_from_pyodide or is_running_from_docker():
             rw_toggle = None
         else:
-            rw_toggle = pn.widgets.Toggle.from_param(
+            rw_toggle = pmui.Toggle.from_param(
                 self.param.write_allowed,
                 icon="pencil",
                 name="Open with Write Access",
                 button_type="warning",
-                button_style="outline",
+                # button_style="outline",
             )
 
-        #self._update_header()
+        # self._update_header()
         card_items = [
             self.datagroup_selector_widget,
             self.data_group_index_widget,
@@ -313,12 +325,18 @@ class BlsFileInput(WidgetBase, PyComponent):
         if rw_toggle is not None:
             card_items.insert(0, rw_toggle)
 
-        card_content = pmui.Column(*card_items, sizing_mode="stretch_width")
-        self._card = CustomPMuiCard(            card_content,
-            
+        card_content = pmui.Column(*card_items, 
+                                      #width_option='xs'
+                                   #sizing_mode="stretch_width"
+                                   #margin = 5, 
+                                   #padding_right=5,
+                                   )
+        self._card = CustomPMuiCard(
+            card_content,
             collapsible=False,
-            margin=5,
+            #margin=5,
             sizing_mode="stretch_width",
             title=self.name,
+            spinner=self.spinner,
         )
         return self._card

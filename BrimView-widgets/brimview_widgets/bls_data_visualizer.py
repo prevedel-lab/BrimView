@@ -23,7 +23,7 @@ from .logging import logger
 import brimfile as bls
 from .bls_file_input import BlsFileInput
 from .utils import only_on_change, catch_and_notify
-from .widgets import HorizontalEditableIntSlider, CustomPMuiCard
+from .widgets import CustomPMuiCard
 import colorcet as cc
 import pandas as pd
 
@@ -851,7 +851,7 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             colorrange_picker.disabled = self.autoscale
 
         # Seems like we need to manually update the widget's bounds
-        self.img_axis_3_slice_widget = HorizontalEditableIntSlider.from_param(
+        self.img_axis_3_slice_widget = pmui.EditableIntSlider.from_param(
             self.param.img_axis_3_slice,
             format="0",
             name="3rd axis",
@@ -860,8 +860,9 @@ class BlsDataVisualizer(WidgetBase, PyComponent):
             fixed_start=0,  # These will be updated in _update_axis_3
             disabled=True,
             margin=5,
+            sizing_mode="stretch_width",
         )
-        self.img_axis_3_slice_widget.tooltip_text = "Change which slice is displayed"
+        #self.img_axis_3_slice_widget.tooltip_text = "Change which slice is displayed"
 
         axis_options = CustomPMuiCard(
             pmui.FlexBox(

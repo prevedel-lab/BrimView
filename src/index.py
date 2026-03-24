@@ -93,7 +93,7 @@ def parse_query_params(file_widget: "brimview_widgets.TinkerFileSelector"):
 # The things we need
 # See: https://github.com/holoviz/panel/issues/7913#issuecomment-2880177999
 # See: https://panel.holoviz.org/explanation/styling/templates_overview.html
-sidebar = pmui.FlexBox(theme_config=mui_theme_config)
+sidebar = pmui.Container(theme_config=mui_theme_config, width_option='xs', disable_gutters=True)
 main_tabs = pmui.Tabs(
     sizing_mode="stretch_width",
     theme_config=mui_theme_config
@@ -218,6 +218,7 @@ def build_ui():
 
         # Creating the treatment widget
         TreamentWidget = TreamentWidget_webapp
+        bls_zarr_info_widget = TreamentWidget_webapp
 
     else:  # We're in `panel serve` case
 
@@ -243,7 +244,7 @@ def build_ui():
             TreamentWidget = brimview_widgets.BlsDoTreatment(FileSelector)
         
         bls_zarr_info_widget = brimview_widgets.BlsZarrInfo(value=FileSelector.param.data)
-        main_tabs.append(("Zarr info (debug)", bls_zarr_info_widget))
+        
         
     
     analyser_placeholder.append(TreamentWidget)
@@ -265,7 +266,7 @@ def build_ui():
     # Metadata tab
     bls_metadata_widget = brimview_widgets.BlsMetadata(value=FileSelector.param.data)
     main_tabs.append(("Metadata", bls_metadata_widget))
-
+    main_tabs.append(("Zarr info (debug)", bls_zarr_info_widget))
 
 
     # === UI Bug workaround ===
