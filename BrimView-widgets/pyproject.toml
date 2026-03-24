@@ -34,6 +34,7 @@ dependencies = [
   "bokeh~=3.8",
   "holoviews~=1.22",
   "panel~=1.8",
+  "panel-jstree~=0.3",
   "xarray",
   "brimfile[export-tiff]"
 ]
