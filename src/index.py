@@ -18,7 +18,7 @@ import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 __version__ = "0.2.2"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
-pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", "modal", notifications=True)
+pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", "modal", "tree", notifications=True)
 pn.extension(
     raw_css=[
         """
@@ -183,6 +183,9 @@ def build_ui():
         # Creating the treatment widget
         TreamentWidget = TreamentWidget_webapp
 
+        # Creating the zarr info widget
+        zarr_info_widget = TreamentWidget_webapp
+
     else:  # We're in `panel serve` case
 
         # Creating the file input widget
@@ -205,7 +208,9 @@ def build_ui():
             TreamentWidget = TreamentWidget_webapp
         else:
             TreamentWidget = brimview_widgets.BlsDoTreatment(FileSelector)
-        
+
+        # Creating the zarr info widget
+        zarr_info_widget = brimview_widgets.BlsZarrInfo(value=FileSelector.param.data)
     
     analyser_placeholder.append(TreamentWidget)
 
@@ -249,6 +254,7 @@ def build_ui():
 
     # "Treatement" tab
     main_tabs.append(("(Re-)analyze spectra", analyser_placeholder))
+    main_tabs.append(("Advanced file information", zarr_info_widget))
 
     # ======
     # Populate the sidebar

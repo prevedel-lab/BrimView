@@ -17,6 +17,7 @@ if running_from_pyodide:
     from .browser_file_selectors import CustomJSFileInput
     pass #JSFileInput needs to be in the main python file, not in the widgets package
 else:
+    from .bls_zarr_info import BlsZarrInfo
     from .browser_file_selectors import CustomJSFileInput
     from .local_file_selectors import TinkerFileSelector
     from .bls_do_treatment import BlsDoTreatment
