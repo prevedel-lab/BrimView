@@ -183,8 +183,13 @@ def build_ui():
         # Creating the treatment widget
         TreamentWidget = TreamentWidget_webapp
 
-        # Creating the zarr info widget
-        zarr_info_widget = TreamentWidget_webapp
+        # In the Pyodide/webapp build, backend Zarr inspection is not available.  
+        zarr_info_widget = pn.pane.Markdown(  
+            "### Advanced file information\n\n"  
+            "Advanced Zarr file inspection is not available in this web "  
+            "application build. This feature requires the Zarr library and "  
+            "a running Python backend server."  
+        )  
 
     else:  # We're in `panel serve` case
 

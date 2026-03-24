@@ -50,7 +50,7 @@ class BlsZarrInfo(WidgetBase, PyComponent):
             data=[],
             select_multiple=False,
             checkbox=False,
-            plugins=["wholerow"],
+            plugins=["wholerow", "sort"],
             min_width=300,
             min_height=300,
         )
@@ -75,10 +75,10 @@ class BlsZarrInfo(WidgetBase, PyComponent):
     @catch_and_notify(prefix="<b>Zarr detail display: </b>")
     def _tree_selected_callback(self, selected_ids):
         logger.info(f"Zarr tree file selected node changed, selected_ids: {selected_ids}")
-        id = selected_ids[0] if selected_ids else None
+        selected_id = selected_ids[0] if selected_ids else None
         node = None
-        for n in self.tree._flat_tree:
-            if n["id"] == id:
+        for n in self.tree.flat_tree:
+            if n["id"] == selected_id:
                 node = n
                 break
 
@@ -114,7 +114,7 @@ class BlsZarrInfo(WidgetBase, PyComponent):
             return
         root: zarr.Group = self.value._file._root
         group_info = sync(root.info_complete())
-        # gropu info is a dataclass
+        # group info is a dataclass
         self.info_tabulator.value = dict_to_tabulator_df(asdict(group_info))
 
     @param.depends("value", watch=True)
@@ -163,7 +163,7 @@ class TreeNode:
     """
     A class representing a node in the tree structure.
     Expected to be consumed by the panel_jstree component: you first need to convert
-    it into a dictonary with `asdict()` before passing to the Tree widget.
+    it into a dictionary with `asdict()` before passing to the Tree widget.
 
     Contains some shared code between different node type.
     """
@@ -175,7 +175,7 @@ class TreeNode:
 
     data: Dict[str, Any] = field(
         default_factory=dict
-    )  # Allows to store abitrary data in the node, that can be used for the details dialog for example
+    )  # Allows to store arbitrary  data in the node, that can be used for the details dialog for example
     node_type: str = "group"  # or "array"
 
     def __post_init__(self):
