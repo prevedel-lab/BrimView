@@ -417,7 +417,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
         freq_max = np.nanmax(frequency)
         common_freq = np.linspace(freq_min, freq_max, n_data_points)  # shape (71,)
 
-        # Flatting 
+        # Flattening 
         PSD_flat = PSD.reshape(-1, PSD.shape[-1])
         freq_flat = frequency.reshape(-1, frequency.shape[-1])
 
