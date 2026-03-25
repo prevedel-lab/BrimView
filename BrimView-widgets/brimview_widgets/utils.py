@@ -89,6 +89,7 @@ def catch_and_notify(duration=4000, notification_type="error", prefix=""):
                 except Exception as e:
                     msg = f"{prefix}{type(e).__name__}: {str(e)}"
                     getattr(pn.state.notifications, notification_type)(msg, duration=duration)
+                    logger.error(f"Error in {func.__name__}: {msg}")
                     return None
             return async_wrapper
         else:
@@ -99,6 +100,7 @@ def catch_and_notify(duration=4000, notification_type="error", prefix=""):
                 except Exception as e:
                     msg = f"{prefix}{type(e).__name__}: {str(e)}"
                     getattr(pn.state.notifications, notification_type)(msg, duration=duration)
+                    logger.error(f"Error in {func.__name__}: {msg}")
                     return None
             return sync_wrapper
     return decorator
