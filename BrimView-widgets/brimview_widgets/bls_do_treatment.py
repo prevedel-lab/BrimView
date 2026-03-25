@@ -344,7 +344,13 @@ class BlsDoTreatment(pn.viewable.Viewer):
             if self.spectrum_processing_limit:
                 self.n_spectra = np.prod(self._psd_shape[:-1])
                 # Add 0 to the end of the flat arrays to match the original shape, for the spectra that were not processed
-                print(shift.shape, amplitude.shape, linewidth.shape, offset.shape)
+                logger.debug(
+                    "Peak shapes before padding - shift: %s, amplitude: %s, linewidth: %s, offset: %s",
+                    shift.shape,
+                    amplitude.shape,
+                    linewidth.shape,
+                    offset.shape,
+                )
                 shift = np.pad(shift, ((0, self.n_spectra - shift.shape[0])), mode="constant", constant_values=0.0)
                 amplitude = np.pad(amplitude, ((0, self.n_spectra - amplitude.shape[0])), mode="constant", constant_values=0.0)
                 linewidth = np.pad(linewidth, ((0, self.n_spectra - linewidth.shape[0])), mode="constant", constant_values=0.0)
