@@ -421,7 +421,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
         PSD_flat = PSD.reshape(-1, PSD.shape[-1])
         freq_flat = frequency.reshape(-1, frequency.shape[-1])
 
-        # we're sampling some spectr
+        # we're sampling some spectra
         flat_indices = np.random.choice(
             num_spectra, size=self.mean_spectra_n_samples.value, replace=False
         )
