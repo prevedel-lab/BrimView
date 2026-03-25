@@ -192,8 +192,6 @@ class BlsDoTreatment(pn.viewable.Viewer):
         # await self._process_data()
         await self._bls_treatement()
         await self._save_bls_treatment()
-        if self.data_processed:
-            self._save_treatment()
 
     @catch_and_notify(prefix="<b>Treatment: </b>")
     async def _bls_treatement(self):
@@ -203,18 +201,26 @@ class BlsDoTreatment(pn.viewable.Viewer):
         async with self._bls_treatment_lock:
             if self.bls_data is None:
                 return
-            (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
-            # TODO: use nD frequency array when the library supports it
-            frequency = np.broadcast_to(frequency, PSD.shape)[
-                0, :
-            ]  # Assuming frequency is 2D, take the first column
+            (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD_as_spatial_map(broadcast_frequency=True)
+            self._psd_shape = PSD.shape # Storing original shape to unflatten later
+            PSD_flat = PSD.reshape(-1, PSD.shape[-1])
+            freq_flat = frequency.reshape(-1, frequency.shape[-1])
 
             if self.spectrum_processing_limit is not None:
                 # Limit the number of spectra to process
-                PSD = PSD[: self.spectrum_processing_limit, :]
-                frequency = frequency[: self.spectrum_processing_limit]
+                PSD_flat = PSD_flat[: self.spectrum_processing_limit]
+                freq_flat = freq_flat[: self.spectrum_processing_limit]
 
-            self.bls_treat = bls_treat.Treat(frequency=frequency, PSD=PSD)
+            # Converting to 1D freq array    
+            freq_flat = freq_flat[0, :]  # Assuming the frequency is the same across all spectra, we take the first one
+            
+            # bls_treat expects the frequency to be ordered from low to high
+            # brimfile array can be anything, so we sort it just in case
+            sort_indices = np.argsort(freq_flat)
+            freq_flat = freq_flat[sort_indices]
+            PSD_flat = PSD_flat[:, sort_indices]
+            logger.debug("Frequency axis for BLS treatment: %s", freq_flat)
+            self.bls_treat = bls_treat.Treat(frequency=freq_flat, PSD=PSD_flat)
 
             # import matplotlib.pyplot as plt  # DEBUG remove later
 
@@ -225,13 +231,14 @@ class BlsDoTreatment(pn.viewable.Viewer):
             window_points = [peak.normalizing_window for peak in peaks]
             # Adding the points to the treat object
             for p, w in zip(positions, window_points):
+                logger.debug(f"Adding point for normalization: position={p}, window={w}")
                 self.bls_treat.add_point(
                     position_center_window=p, type_pnt="Other", window_width=w
                 )
             # Applying the normalization: the lowest 5% of the data is averaged to extract the offset and then the intensity array is divided by the average of the intensity of the two peaks so as to normalize the amplitude of the peaks to 1
-            self.bls_treat.normalize_data(
-                threshold_noise=self.bls_options.threshold_noise
-            )  # Note: This function clears the points stored in memory of the treat module
+            # self.bls_treat.normalize_data(
+            #     threshold_noise=self.bls_options.threshold_noise
+            # )  # Note: This function clears the points stored in memory of the treat module
 
             # Selecting the points for the fitting
             positions = [peak.position for peak in peaks]
@@ -295,80 +302,6 @@ class BlsDoTreatment(pn.viewable.Viewer):
             logger.info(
                 f"Average time for a single spectrum: {1e3*tf/np.prod(len(self.bls_treat.shift)):.2f} ms"
             )
-    
-    async def _process_data(self):
-        # Using yield/generator to display real-time process
-        # So we also need to store the results in the class
-
-        # TODO: this is still blocking the UI for some reason
-        logger.debug(self.bls_data.get_num_parameters())
-        i = 0
-        self.AS_shift = []
-        self.S_shift = []
-        self.AS_width = []
-        self.S_width = []
-        self.AS_Amplitude = []
-        self.S_Amplitude = []
-        self.data_processed = False
-        # max spectrum = 28574
-        n_test_spectra = 100
-        self.AS_shift = np.array([0.0] * 28574)
-        self.S_shift = np.array([0.0] * 28574)
-        self.AS_width = np.array([1.0] * 28574)
-        self.S_width = np.array([1.0] * 28574)
-        self.AS_Amplitude = np.array([2.0] * 28574)
-        self.S_Amplitude = np.array([2.0] * 28574)
-
-        (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
-        # For testing, we will process only 100 spectra
-        self.n_spectra = n_test_spectra
-        # self.n_spectra = PSD.shape[0]
-        self.processing_spectra = 0
-        logger.debug(f"PSD.shape: {PSD.shape}, frequency.shape: {frequency.shape}")
-        for i in range(0, self.n_spectra):
-            # Let's release the thread so that the UI can update
-            # in the proper version, we would do this every x iterations
-            await asyncio.sleep(0.01)  # Yield control to the event loop
-            # logger.info(f"Processing spectrum {i}")
-            self.processing_spectra = i
-            start_time = time.perf_counter()
-
-            # yield i
-            # Simulate processing the spectrum
-            # (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_spectrum(i)
-
-            mask_as = (frequency[i, :] > self.x_antistokes_range[0]) & (
-                frequency[i, :] < self.x_antistokes_range[1]
-            )
-            AS_x = frequency[i, mask_as]
-            AS_y = PSD[i, mask_as]
-
-            mask_s = (frequency[i, :] > self.x_stokes_range[0]) & (
-                frequency[i, :] < self.x_stokes_range[1]
-            )
-            S_x = frequency[i, mask_s]
-            S_y = PSD[i, mask_s]
-
-            def lorentzian(x, x0, w):
-                return 1 / (1 + ((x - x0) / (w / 2)) ** 2)
-
-            def real_lorentzian(x, shift, width, amplitude):
-                return amplitude * lorentzian(x, shift, width)
-
-            (AS_popt, AS_pcov) = scipy.optimize.curve_fit(real_lorentzian, AS_x, AS_y)
-            (S_popt, S_pcov) = scipy.optimize.curve_fit(real_lorentzian, S_x, S_y)
-            logger.debug(AS_popt)
-            # TODO later: actual fit and process the data
-            self.AS_shift[i] = AS_popt[0]
-            self.AS_width[i] = AS_popt[1]
-            self.AS_Amplitude[i] = AS_popt[2]
-            self.S_shift[i] = S_popt[0]
-            self.S_width[i] = S_popt[1]
-            self.S_Amplitude[i] = S_popt[2]
-            end_time = time.perf_counter()
-            duration = end_time - start_time
-            logger.info(f"Async iteration {i} took {duration:.6f} seconds")
-        self.data_processed = True
 
     @catch_and_notify(prefix="<b>Save treatment: </b>")
     async def _save_bls_treatment(self):
@@ -379,7 +312,23 @@ class BlsDoTreatment(pn.viewable.Viewer):
         logger.debug(f"linewidth: {self.bls_treat.linewidth.shape}")
 
         fitted_peaks = []
+        model = self.bls_options.model_fit
+        match model:
+            case "Lorentzian":
+                model = bls.Data.AnalysisResults.FitModel.Lorentzian
+            case "Lorentzian elastic":
+                model = bls.Data.AnalysisResults.FitModel.Undefined
+            case "DHO":
+                model = bls.Data.AnalysisResults.FitModel.DHO
+            case "DHO elastic":
+               model = bls.Data.AnalysisResults.FitModel.Undefined
+            case "Gaussian":
+                model = bls.Data.AnalysisResults.FitModel.Gaussian
+            case _:
+                model = bls.Data.AnalysisResults.FitModel.Undefined
 
+        time_str = time.strftime("%Y%m%d-%H%M%S")
+        name = f"BrimView_{model}_{time_str}"
         for (
             shift,
             amplitude,
@@ -391,6 +340,27 @@ class BlsDoTreatment(pn.viewable.Viewer):
             self.bls_treat.linewidth.T,
             self.bls_treat.offset.T,
         ):
+            # unflattening the results
+            if self.spectrum_processing_limit:
+                self.n_spectra = np.prod(self._psd_shape[:-1])
+                # Add 0 to the end of the flat arrays to match the original shape, for the spectra that were not processed
+                logger.debug(
+                    "Peak shapes before padding - shift: %s, amplitude: %s, linewidth: %s, offset: %s",
+                    shift.shape,
+                    amplitude.shape,
+                    linewidth.shape,
+                    offset.shape,
+                )
+                shift = np.pad(shift, ((0, self.n_spectra - shift.shape[0])), mode="constant", constant_values=0.0)
+                amplitude = np.pad(amplitude, ((0, self.n_spectra - amplitude.shape[0])), mode="constant", constant_values=0.0)
+                linewidth = np.pad(linewidth, ((0, self.n_spectra - linewidth.shape[0])), mode="constant", constant_values=0.0)
+                offset = np.pad(offset, ((0, self.n_spectra - offset.shape[0])), mode="constant", constant_values=0.0)
+            
+            shift = shift.reshape(self._psd_shape[:-1])  
+            amplitude = amplitude.reshape(self._psd_shape[:-1])
+            linewidth = linewidth.reshape(self._psd_shape[:-1])
+            offset = offset.reshape(self._psd_shape[:-1])
+            
             fitted_peaks.append(
                 {
                     "shift": shift,
@@ -404,61 +374,27 @@ class BlsDoTreatment(pn.viewable.Viewer):
                 }
             )
         if len(fitted_peaks) == 1:
-            self.bls_data.create_analysis_results_group_raw(
+            self.bls_data.create_analysis_results_group(
                 (fitted_peaks[0]),
-                name="test1_analysis",
+                fit_model=model,
+                name=name,
             )
         elif len(fitted_peaks) == 2:
-            self.bls_data.create_analysis_results_group_raw(
-                (fitted_peaks[0]),
-                (fitted_peaks[1]),
-                name="test1_analysis",
+            # If fitted_peak[1] offset is 0, then use the offset of fitted_peak[0] for both peaks, otherwise we have to save the offset of the two peaks separately
+            peak_anti_stokes = fitted_peaks[0]
+            peak_stokes = fitted_peaks[1].copy()
+            if np.allclose(peak_stokes["offset"], 0.0):
+                peak_stokes["offset"] = peak_anti_stokes["offset"].copy()
+
+            self.bls_data.create_analysis_results_group(
+                peak_anti_stokes,
+                peak_stokes,
+                fit_model=model,
+                name=name,
             )
         else:
-            logger.warning("More than 2 peaks fitted, unsure how to save that")
+            raise Exception("More than 2 peaks fitted, unsure how to save that")
         self.bls_reload_file()
-
-    @catch_and_notify(prefix="<b>Save treatment: </b>")
-    def _save_treatment(self):
-        """
-        Perform the treatment on the data.
-        This is a placeholder for the actual treatment logic.
-        """
-        if self.bls_data is None:
-            raise ValueError("No BLS data available for treatment.")
-        logger.debug(f"max AS shift: {np.max(self.AS_shift)}, min AS shift: {np.min(self.AS_shift)}")
-        logger.debug(self.AS_shift.shape)
-        logger.debug(self.S_shift.shape)
-        # Example treatment: Normalize the data
-        ar = self.bls_data.create_analysis_results_group_raw(
-            (
-                {
-                    "shift": self.AS_shift,
-                    "shift_units": "GHz",
-                    "width": self.AS_width,
-                    "width_units": "Hz",
-                    "amplitude": self.AS_Amplitude,
-                    "amplitude_units": "a.u.",
-                },
-            ),
-            (
-                {
-                    "shift": self.S_shift,
-                    "shift_units": "GHz",
-                    "width": self.S_width,
-                    "width_units": "Hz",
-                    "amplitude": self.S_Amplitude,
-                    "amplitude_units": "a.u.",
-                },
-            ),
-            name="test1_analysis",
-        )
-        self.bls_reload_file()
-        logger.debug(ar)
-        # self.bls_data.data = (
-        #    self.bls_data.data - np.mean(self.bls_data.data)
-        # ) / np.std(self.bls_data.data)
-        logger.info("Treatment applied to BLS data.")
 
     @param.depends("bls_data", watch=True)
     def _update_widget(self):
@@ -468,39 +404,44 @@ class BlsDoTreatment(pn.viewable.Viewer):
         else:
             self.mean_spectra_button.disabled = False
             self.btn_process_data.disabled = False
-            (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
-            self.mean_spectra_n_samples.end = PSD.shape[0]
+            (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD_as_spatial_map(broadcast_frequency=True)
+            self.mean_spectra_n_samples.end = np.prod(PSD.shape[:-1])
             self.mean_spectra_n_samples.start = 1
             logger.debug(PSD.shape)
 
+    @catch_and_notify(prefix="<b>Compute mean spectra: </b>")
     def compute_mean_spectra(self, event):
-        (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
-        frequency = np.broadcast_to(frequency, PSD.shape)
+        (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD_as_spatial_map(broadcast_frequency=True)
 
         logger.debug(f"PSD shape : {PSD.shape}")
         logger.debug(f"freq shape : {frequency.shape}")
 
         # generate average PSD - last dimension is the frequency
-        n_data_points = PSD.shape[1]
+        num_spectra = np.prod(PSD.shape[:-1])
+        n_data_points = PSD.shape[-1]
         freq_min = np.nanmin(frequency)
         freq_max = np.nanmax(frequency)
         common_freq = np.linspace(freq_min, freq_max, n_data_points)  # shape (71,)
 
-        # we're sampling some spectr
-        sample_indices = np.random.choice(
-            PSD.shape[0], size=self.mean_spectra_n_samples.value, replace=False
+        # Flattening 
+        PSD_flat = PSD.reshape(-1, PSD.shape[-1])
+        freq_flat = frequency.reshape(-1, frequency.shape[-1])
+
+        # we're sampling some spectra
+        flat_indices = np.random.choice(
+            num_spectra, size=self.mean_spectra_n_samples.value, replace=False
         )
 
         interpolated_psd = np.empty(
-            (len(sample_indices), len(common_freq))
+            (len(flat_indices), len(common_freq))
         )  # TODO - this might not work with data with more dimensions
         self.progress_widget.start(
-            total=len(sample_indices), task="Computing mean spectra"
+            total=len(flat_indices), task="Computing mean spectra"
         )
 
-        for i, idx in enumerate(sample_indices):
-            f = frequency[idx, :]
-            p = PSD[idx, :]
+        for i, flat_idx in enumerate(flat_indices):
+            f = freq_flat[flat_idx]
+            p =  PSD_flat[flat_idx]
             interp_func = scipy.interpolate.interp1d(
                 f, p, kind="linear", bounds_error=False, fill_value="extrapolate"
             )
@@ -528,6 +469,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
         on_init=True,
         watch=True,
     )
+    @catch_and_notify(prefix="<b>fit_parameters_help_ui: </b>")
     def fit_parameters_help_ui(self):
         peak_spans = self.peaks_for_treament.get_hv_vspans().opts(
             color="red",
@@ -541,7 +483,6 @@ class BlsDoTreatment(pn.viewable.Viewer):
             frequency_units,
             PSD_units,
         ) = self.mean_spectra
-        logger.debug(self.mean_spectra)
         if common_freq is None and mean_spectrum is None:
             logger.error("Curve is None !")
             plot = peak_spans
