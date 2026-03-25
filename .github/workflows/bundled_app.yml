@@ -3,7 +3,7 @@ name: Build and Release Bundled App
 on:
   push:
     tags:
-      - '*'   # runs on any tag push
+      - 'v*.*.*'   # runs on version tags like v0.2.2
   workflow_dispatch:    # <-- allows manual runs for testing
     inputs:
       release_tag:

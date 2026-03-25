@@ -3,7 +3,7 @@ name: Build and Push Docker Image to GHCR
 on:
   push:
     tags:
-      - '*'   # runs on any tag push
+      - 'v*.*.*'   # runs on version tags like v0.2.2
   workflow_dispatch:  # Allows you to trigger the workflow manually
 
 env:
