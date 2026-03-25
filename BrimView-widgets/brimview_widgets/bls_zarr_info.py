@@ -37,7 +37,7 @@ class BlsZarrInfo(WidgetBase, PyComponent):
         self.title = pn.pane.Markdown("## Zarr file information")
         super().__init__(**params)
 
-        # Tabulator to display zarr info 
+        # Tabulator to display zarr info
         self.info_tabulator = pn.widgets.Tabulator(
             show_index=False,
             disabled=True,
@@ -58,7 +58,7 @@ class BlsZarrInfo(WidgetBase, PyComponent):
         # ( pn.depend(tree.value) is not working, so this is a quick workaround)
         pn.bind(self._tree_selected_callback, self.tree.param.value, watch=True)
 
-        # Node details 
+        # Node details
         self.detail_text = pn.pane.Markdown("Click on a node to see its attributes")
         self.detail_tabulator = pn.widgets.Tabulator(
             show_index=False,
@@ -74,7 +74,9 @@ class BlsZarrInfo(WidgetBase, PyComponent):
 
     @catch_and_notify(prefix="<b>Zarr detail display: </b>")
     def _tree_selected_callback(self, selected_ids):
-        logger.info(f"Zarr tree file selected node changed, selected_ids: {selected_ids}")
+        logger.info(
+            f"Zarr tree file selected node changed, selected_ids: {selected_ids}"
+        )
         selected_id = selected_ids[0] if selected_ids else None
         node = None
         for n in self.tree.flat_tree:
@@ -82,7 +84,7 @@ class BlsZarrInfo(WidgetBase, PyComponent):
                 node = n
                 break
 
-        logger.info(f"Selected node: {node}")
+        logger.debug(f"Selected node: {node}")
         if node is None:
             self.detail_tabulator.value = None
             self.detail_text.object = "Click on a node to see its attributes"
@@ -96,15 +98,16 @@ class BlsZarrInfo(WidgetBase, PyComponent):
     @param.depends("value")
     @catch_and_notify(prefix="<b>Zarr file size: </b>")
     def _size_widget(self):
+        logger.info("Calculating Zarr file size")
         if self.value is None:
             return pn.pane.Markdown("")
 
         store = self.value._file._store
         size = sync(store.getsize_prefix("/"))
         readable_size = bytes_human_string(size)
-        return pn.pane.Markdown(
-            f"Reported file size: **{readable_size}** (= {size} bytes)"
-        )
+        msg = f"Reported file size: **{readable_size}** (= {size} bytes)"
+        logger.debug(msg)
+        return pn.pane.Markdown(msg)
 
     @param.depends("value", watch=True)
     @catch_and_notify(prefix="<b>Zarr file info: </b>")
