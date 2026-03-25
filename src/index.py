@@ -15,7 +15,7 @@ import tifffile  # Force import of tifffile
 
 import HDF5_BLS_treat # Force import of HDF5_BLS_treat
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 hv.extension("bokeh")  # or 'plotly'/'matplotlib' depending on your use
 pn.extension("plotly", "filedropper", "jsoneditor", "tabulator", "modal", "tree", notifications=True)
