@@ -468,39 +468,44 @@ class BlsDoTreatment(pn.viewable.Viewer):
         else:
             self.mean_spectra_button.disabled = False
             self.btn_process_data.disabled = False
-            (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
-            self.mean_spectra_n_samples.end = PSD.shape[0]
+            (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD_as_spatial_map(broadcast_frequency=True)
+            self.mean_spectra_n_samples.end = np.prod(PSD.shape[:-1])
             self.mean_spectra_n_samples.start = 1
             logger.debug(PSD.shape)
 
+    @catch_and_notify(prefix="<b>Compute mean spectra: </b>")
     def compute_mean_spectra(self, event):
-        (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD()
-        frequency = np.broadcast_to(frequency, PSD.shape)
+        (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD_as_spatial_map(broadcast_frequency=True)
 
         logger.debug(f"PSD shape : {PSD.shape}")
         logger.debug(f"freq shape : {frequency.shape}")
 
         # generate average PSD - last dimension is the frequency
-        n_data_points = PSD.shape[1]
+        num_spectra = np.prod(PSD.shape[:-1])
+        n_data_points = PSD.shape[-1]
         freq_min = np.nanmin(frequency)
         freq_max = np.nanmax(frequency)
         common_freq = np.linspace(freq_min, freq_max, n_data_points)  # shape (71,)
 
+        # Flatting 
+        PSD_flat = PSD.reshape(-1, PSD.shape[-1])
+        freq_flat = frequency.reshape(-1, frequency.shape[-1])
+
         # we're sampling some spectr
-        sample_indices = np.random.choice(
-            PSD.shape[0], size=self.mean_spectra_n_samples.value, replace=False
+        flat_indices = np.random.choice(
+            num_spectra, size=self.mean_spectra_n_samples.value, replace=False
         )
 
         interpolated_psd = np.empty(
-            (len(sample_indices), len(common_freq))
+            (len(flat_indices), len(common_freq))
         )  # TODO - this might not work with data with more dimensions
         self.progress_widget.start(
-            total=len(sample_indices), task="Computing mean spectra"
+            total=len(flat_indices), task="Computing mean spectra"
         )
 
-        for i, idx in enumerate(sample_indices):
-            f = frequency[idx, :]
-            p = PSD[idx, :]
+        for i, flat_idx in enumerate(flat_indices):
+            f = freq_flat[flat_idx]
+            p =  PSD_flat[flat_idx]
             interp_func = scipy.interpolate.interp1d(
                 f, p, kind="linear", bounds_error=False, fill_value="extrapolate"
             )
