@@ -219,7 +219,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
             sort_indices = np.argsort(freq_flat)
             freq_flat = freq_flat[sort_indices]
             PSD_flat = PSD_flat[:, sort_indices]
-            print(freq_flat)
+            logger.debug("Frequency axis for BLS treatment: %s", freq_flat)
             self.bls_treat = bls_treat.Treat(frequency=freq_flat, PSD=PSD_flat)
 
             # import matplotlib.pyplot as plt  # DEBUG remove later
