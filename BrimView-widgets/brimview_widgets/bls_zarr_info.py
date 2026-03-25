@@ -123,15 +123,18 @@ class BlsZarrInfo(WidgetBase, PyComponent):
         if self.value is None:
             self.tree.data = []
             return
-        root = self.value._file._root
+        file = self.value._file
 
-        logger.info("Converting json_descriptor to pmui.Tree format")
-        json_tree = generate_json_descriptor(root)
+        logger.debug("Retrieving json descriptor for the Zarr file")
+        json_tree = generate_json_descriptor(file)
+        logger.info("Converting json_descriptor to jstree format")
         tree = json.loads(json_tree)
         typed_tree = brimfilejson_to_jstree(tree)
         for root_node in typed_tree:
             root_node.state = NodeState(opened=True)
         dict_tree = [asdict(node) for node in typed_tree]
+
+        logger.debug("Updating tree widget with new data")
         self.tree.data = dict_tree
 
     def __panel__(self):
