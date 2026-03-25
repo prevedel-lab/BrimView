@@ -202,7 +202,7 @@ class BlsDoTreatment(pn.viewable.Viewer):
             if self.bls_data is None:
                 return
             (PSD, frequency, PSD_units, frequency_units) = self.bls_data.get_PSD_as_spatial_map(broadcast_frequency=True)
-            self._psd_shape = PSD.shape # Storing orignal shape to unflatten later
+            self._psd_shape = PSD.shape # Storing original shape to unflatten later
             PSD_flat = PSD.reshape(-1, PSD.shape[-1])
             freq_flat = frequency.reshape(-1, frequency.shape[-1])
 
