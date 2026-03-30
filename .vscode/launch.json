@@ -16,7 +16,10 @@
                 "--admin"
             ],
             "console": "integratedTerminal",
-            "justMyCode": false
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/BrimView-widgets"
+            }
         },
         {
             "name": "Current File",
