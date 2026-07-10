@@ -19,7 +19,7 @@ Use the sidebar to load some data, and then explore the different timepoints of 
 
 # Learn more about it
 
-If you want to get more information about this project, you can read [our recent preprint](https://arxiv.org/abs/2509.07566). 
+If you want to get more information about this project, you can read [our publication](https://doi.org/10.1038/s41592-026-03164-0). 
 
 # One codebase, multiple deployments options
 
