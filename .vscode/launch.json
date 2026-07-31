@@ -13,12 +13,33 @@
             "args": [
                 "serve",
                 "${workspaceFolder}/src/index.py",
+                "--index=index",
                 "--admin"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/BrimView-widgets"
+            }
+        },
+        {
+            "name": "Panel serve (with analytics)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "panel",
+            "args": [
+                "serve",
+                "${workspaceFolder}/src/index.py",
+                "--admin",
+                "--index=index",
+                "--setup", "${workspaceFolder}/analytics/request_logger_setup.py",
+                "--use-xheaders",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/BrimView-widgets",
+                "REQUEST_LOG_DB": "${workspaceFolder}/TODELETE/requests.db"
             }
         },
         {

@@ -8,7 +8,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/brimview:latest
+  IMAGE_REPO: ${{ github.repository_owner }}/brimview
+  ANALYTICS_IMAGE_REPO: ${{ github.repository_owner }}/brimview-analytics
 
 jobs:
   docker:
@@ -22,15 +23,52 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Build base Docker image
         run: |
-          IMAGE_NAME=${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-          docker build --build-arg ADMIN_ENDPOINT=${{secrets.ADMIN_PANEL_ENTRYPOINT}} --pull -t $IMAGE_NAME .
+          IMAGE_REPO=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION_TAG=${GITHUB_REF_NAME}
+          else
+            VERSION_TAG=latest
+          fi
+          LOCAL_BASE_IMAGE=brimview-base:ci
+          docker build --build-arg ADMIN_ENDPOINT=${{secrets.ADMIN_PANEL_ENTRYPOINT}} --pull \
+            -t $IMAGE_REPO:latest \
+            -t $IMAGE_REPO:$VERSION_TAG \
+            -t $LOCAL_BASE_IMAGE \
+            -f Dockerfile .
+
+      - name: Build analytics Docker image (from local base image)
+        run: |
+          ANALYTICS_IMAGE_REPO=${{ env.REGISTRY }}/${{ env.ANALYTICS_IMAGE_REPO }}
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION_TAG=${GITHUB_REF_NAME}
+          else
+            VERSION_TAG=latest
+          fi
+          LOCAL_BASE_IMAGE=brimview-base:ci
+          docker build --build-arg BASE_IMAGE=$LOCAL_BASE_IMAGE --build-arg ADMIN_ENDPOINT=${{secrets.ADMIN_PANEL_ENTRYPOINT}} \
+            -t $ANALYTICS_IMAGE_REPO:latest \
+            -t $ANALYTICS_IMAGE_REPO:$VERSION_TAG \
+            -f Dockerfile.analytics .
       
       - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
-      - name: Push Docker image to GHCR
+      - name: Push Docker images to GHCR
         run: |
-          IMAGE_NAME=${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
-          docker image push $IMAGE_NAME
+          IMAGE_REPO=${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}
+          ANALYTICS_IMAGE_REPO=${{ env.REGISTRY }}/${{ env.ANALYTICS_IMAGE_REPO }}
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION_TAG=${GITHUB_REF_NAME}
+          else
+            VERSION_TAG=latest
+          fi
+
+          docker image push $IMAGE_REPO:latest
+          docker image push $ANALYTICS_IMAGE_REPO:latest
+
+          if [ "$VERSION_TAG" != "latest" ]; then
+            docker image push $IMAGE_REPO:$VERSION_TAG
+            docker image push $ANALYTICS_IMAGE_REPO:$VERSION_TAG
+          fi

@@ -1,0 +1,29 @@
+#ARG BASE_IMAGE=ghcr.io/brillouin-imaging/brimview:latest
+ARG BASE_IMAGE=brimview:latest
+FROM ${BASE_IMAGE}
+
+# Copy your app code
+COPY --chown=panel:panel analytics/request_logger_setup.py /app/
+
+# Install Python deps
+# (holoviews/pandas come from BrimView-widgets already
+# only prometheus_client is new, for the request logging)
+RUN pip install --no-cache-dir prometheus_client
+
+ENV METRICS_PORT=9100
+# Expose ports (9100 = Prometheus /metrics)
+EXPOSE $METRICS_PORT
+
+# ENV ADMIN_ENDPOINT exists in the base image
+
+# Start the Panel app
+# see https://discourse.bokeh.org/t/understanding-the-allow-websocket-origin-option/10636 for allow-websocket-origin
+CMD ["/bin/sh", "-c", "panel serve index.py --index=index \
+    --liveness --liveness-endpoint healthz \
+    --address 0.0.0.0 --port 5006 --allow-websocket-origin 'brimview.embl.org' \
+    --use-xheaders \
+    --setup request_logger_setup.py \
+    --admin --admin-endpoint \"$ADMIN_ENDPOINT\" --admin-log-level debug \
+    --global-loading-spinner \
+    --num-procs 1 --num-threads 0 \
+    --args from-docker"]
