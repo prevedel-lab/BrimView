@@ -22,6 +22,10 @@ repeat visits don't re-spend ipwho.is's free-tier daily quota; a failed or
 rate-limited call raises rather than returning a value, so lru_cache never
 caches it -- it's simply retried the next time that IP shows up.
 
+Pod memory/CPU history is handled separately, in resource_monitor.py
+(imported below) -- see that file's own docstring for why it's kept fully
+independent (own thread, own SQLite file) rather than folded in here.
+
 Requires:
   - `panel serve ... --use-xheaders` so the real client IP (from
     X-Forwarded-For / X-Real-Ip, set by your ingress) is used instead of
@@ -49,6 +53,16 @@ from functools import lru_cache
 from urllib.parse import urlsplit
 
 import requests
+
+# panel serve is a console-script entry point, which (unlike `python
+# script.py`) does not add this script's own directory to sys.path -- so
+# without this, `import resource_monitor` fails unless it happens to
+# already be on the path some other way. __file__ is set correctly here
+# by panel's --setup mechanism (it execs this file with its own path in
+# the namespace), confirmed by testing.
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import resource_monitor
 
 DB_PATH = os.environ.get("REQUEST_LOG_DB", "/data/requests.db")
 RETENTION_DAYS = int(os.environ.get("REQUEST_LOG_RETENTION_DAYS", "0"))
@@ -274,6 +288,7 @@ class GeoAccessLogHandler(logging.Handler):
 _init_db()
 _init_prometheus()
 _start_worker()
+resource_monitor.start_monitoring()
 
 access_logger = logging.getLogger("tornado.access")
 access_logger.setLevel(logging.INFO)

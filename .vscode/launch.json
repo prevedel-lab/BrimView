@@ -39,7 +39,8 @@
             "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/BrimView-widgets",
-                "REQUEST_LOG_DB": "${workspaceFolder}/TODELETE/requests.db"
+                "REQUEST_LOG_DB": "${workspaceFolder}/TODELETE/requests.db",
+                "RESOURCE_DB": "${workspaceFolder}/TODELETE/resources.db"
             }
         },
         {
