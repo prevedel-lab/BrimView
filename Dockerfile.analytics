@@ -6,13 +6,22 @@ FROM ${BASE_IMAGE}
 COPY --chown=panel:panel analytics/request_logger_setup.py /app/
 COPY --chown=panel:panel analytics/resource_monitor.py /app/
 
-# Install Python deps
-# (holoviews/pandas come from BrimView-widgets already
-# only prometheus_client is new, for the request logging)
-RUN pip install --no-cache-dir prometheus_client
+# Toggle Prometheus support for analytics request metrics.
+# Set ENABLE_PROMETHEUS=false to skip prometheus_client installation.
+ARG ENABLE_PROMETHEUS=false
+ARG METRICS_PORT=9100
+ENV ENABLE_PROMETHEUS=${ENABLE_PROMETHEUS}
+ENV METRICS_PORT=${METRICS_PORT}
 
-ENV METRICS_PORT=9100
-# Expose ports (9100 = Prometheus /metrics)
+# Install optional Python dependency only when Prometheus is enabled.
+RUN if [ "$ENABLE_PROMETHEUS" = "true" ] || [ "$ENABLE_PROMETHEUS" = "1" ]; then \
+            pip install --no-cache-dir prometheus_client; \
+        else \
+            echo "Prometheus disabled; skipping prometheus_client installation"; \
+        fi
+
+# Expose metrics port metadata.
+# If you disable Prometheus for an image, build with METRICS_PORT=0.
 EXPOSE $METRICS_PORT
 
 # ENV ADMIN_ENDPOINT exists in the base image

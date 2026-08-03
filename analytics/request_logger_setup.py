@@ -27,16 +27,20 @@ Pod memory/CPU history is handled separately, in resource_monitor.py
 independent (own thread, own SQLite file) rather than folded in here.
 
 Requires:
-  - `panel serve ... --use-xheaders` so the real client IP (from
-    X-Forwarded-For / X-Real-Ip, set by your ingress) is used instead of
-    the ingress pod's internal IP.
-  - `pip install requests prometheus_client`
+    - `panel serve ... --use-xheaders` so the real client IP (from
+        X-Forwarded-For / X-Real-Ip, set by your ingress) is used instead of
+        the ingress pod's internal IP.
+    - `pip install requests`
+    - `pip install prometheus_client` only when ENABLE_PROMETHEUS is enabled
 
 Configure via environment variables:
   REQUEST_LOG_DB              path to the sqlite file (default /data/requests.db)
   REQUEST_LOG_RETENTION_DAYS  delete rows older than this many days
                                (default 0 = disabled, i.e. rows are kept
                                forever unless you set this explicitly)
+  ENABLE_PROMETHEUS           true/false toggle for Prometheus metrics
+                               (default false -- matches Dockerfile.analytics's
+                               own ARG ENABLE_PROMETHEUS=false default)
   METRICS_PORT                port for the Prometheus /metrics endpoint (default 9100)
 """
 
@@ -66,7 +70,18 @@ import resource_monitor
 
 DB_PATH = os.environ.get("REQUEST_LOG_DB", "/data/requests.db")
 RETENTION_DAYS = int(os.environ.get("REQUEST_LOG_RETENTION_DAYS", "0"))
-METRICS_PORT = int(os.environ.get("METRICS_PORT", "9100"))
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+ENABLE_PROMETHEUS = _env_bool("ENABLE_PROMETHEUS", False)
+_metrics_port_raw = os.environ.get("METRICS_PORT", "9100")
+METRICS_PORT = int(_metrics_port_raw)
 
 log = logging.getLogger("request_logger")
 _requests_counter = None
@@ -129,6 +144,11 @@ def _prune_old_rows(conn: sqlite3.Connection) -> None:
 
 def _init_prometheus() -> None:
     global _requests_counter
+    if not ENABLE_PROMETHEUS:
+        _requests_counter = None
+        log.info("Prometheus metrics disabled by ENABLE_PROMETHEUS")
+        return
+
     try:
         from prometheus_client import Counter, start_http_server
 
