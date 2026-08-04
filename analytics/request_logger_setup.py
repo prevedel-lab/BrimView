@@ -26,12 +26,37 @@ Pod memory/CPU history is handled separately, in resource_monitor.py
 (imported below) -- see that file's own docstring for why it's kept fully
 independent (own thread, own SQLite file) rather than folded in here.
 
+Panel's built-in --admin panel's session records (state.session_info)
+normally live only in memory and are lost on every pod restart. This
+persists every session to a second SQLite table (admin_sessions, same file
+as requests) and restores them on startup, using only Panel/Param's public
+APIs -- state.param.watch(..., 'session_info') and a plain assignment to
+state.session_info -- no monkeypatching needed. This version persists
+every session as-is (no /stats-vs-/index filtering, since that's a
+separate change you haven't adopted here either -- ask if you want it).
+
+Why a table with incremental upserts, rather than periodically
+pickling/dumping the whole state.session_info dict to a file: (1) safety
+-- pickle can execute arbitrary code on load, which is unnecessary risk
+for data that's just strings/floats/None; a table (or JSON) has no such
+issue. (2) cost -- a periodic full dump gets more expensive over a long
+uptime as history grows (admin mode disables Panel's own history trimming,
+so this history is unbounded by default), whereas a per-event upsert
+touches one row and stays cheap regardless of total history size. (3)
+durability -- a fixed interval (say, every 60s) risks losing up to that
+much recent state if the pod dies uncleanly between snapshots, whereas
+writing as each lifecycle event happens (session created / rendered /
+destroyed) keeps that window much smaller -- and there are normally only
+2-4 such events per session, so this isn't a high write-rate design.
+Writes still go through the same background worker thread as the request
+log, so none of this runs synchronously on Tornado's event loop either.
+
 Requires:
-    - `panel serve ... --use-xheaders` so the real client IP (from
-        X-Forwarded-For / X-Real-Ip, set by your ingress) is used instead of
-        the ingress pod's internal IP.
-    - `pip install requests`
-    - `pip install prometheus_client` only when ENABLE_PROMETHEUS is enabled
+  - `panel serve ... --use-xheaders` so the real client IP (from
+    X-Forwarded-For / X-Real-Ip, set by your ingress) is used instead of
+    the ingress pod's internal IP.
+  - `pip install requests`
+  - `pip install prometheus_client` only when ENABLE_PROMETHEUS is enabled
 
 Configure via environment variables:
   REQUEST_LOG_DB              path to the sqlite file (default /data/requests.db)
@@ -67,6 +92,7 @@ import requests
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import resource_monitor
+from panel.io.state import state as pn_state
 
 DB_PATH = os.environ.get("REQUEST_LOG_DB", "/data/requests.db")
 RETENTION_DAYS = int(os.environ.get("REQUEST_LOG_RETENTION_DAYS", "0"))
@@ -85,6 +111,12 @@ METRICS_PORT = int(_metrics_port_raw)
 
 log = logging.getLogger("request_logger")
 _requests_counter = None
+# Last-seen state per session, so the persistence watcher only writes rows
+# that actually changed -- cheap regardless of how large the session
+# history has grown. Only ever touched from the main/event-loop thread
+# (Panel's param-watcher callbacks run there, not on our worker thread), so
+# no lock is needed.
+_last_known_sessions: dict = {}
 
 # Tornado's default access-log line renders as e.g.:
 #   "200 GET /brimview/ (203.0.113.5) 12.34ms"
@@ -108,6 +140,23 @@ def _is_counted_path(raw_path: str) -> bool:
     return path in _COUNTED_PATHS
 
 
+def _on_session_info_changed(event) -> None:
+    """
+    Fires whenever Panel updates state.session_info (session created,
+    rendered, or destroyed -- see panel/io/state.py, all three call
+    self.param.trigger('session_info') after mutating the dict in place).
+    Diffs against _last_known_sessions so only genuinely new/changed
+    sessions get enqueued -- cheap regardless of how large the overall
+    history has grown. This version persists every session as-is; there's
+    no /stats-vs-/index distinction here (see module docstring).
+    """
+    new_sessions = event.new.get("sessions", {})
+    for session_id, session_data in new_sessions.items():
+        if _last_known_sessions.get(session_id) != session_data:
+            _enqueue_session_upsert(session_id, dict(session_data))
+            _last_known_sessions[session_id] = dict(session_data)
+
+
 def _init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
@@ -129,6 +178,18 @@ def _init_db():
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS admin_sessions (
+            session_id TEXT PRIMARY KEY,
+            launched REAL,
+            started REAL,
+            rendered REAL,
+            ended REAL,
+            user_agent TEXT
+        )
+        """
+    )
     conn.commit()
     _prune_old_rows(conn)
     conn.close()
@@ -137,9 +198,56 @@ def _init_db():
 def _prune_old_rows(conn: sqlite3.Connection) -> None:
     if RETENTION_DAYS <= 0:
         return
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).isoformat()
-    conn.execute("DELETE FROM requests WHERE ts < ?", (cutoff,))
+    cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).isoformat()
+    conn.execute("DELETE FROM requests WHERE ts < ?", (cutoff_iso,))
+    cutoff_ts = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).timestamp()
+    conn.execute("DELETE FROM admin_sessions WHERE launched < ?", (cutoff_ts,))
     conn.commit()
+
+
+def _load_persisted_sessions() -> None:
+    """
+    Restore state.session_info['sessions'] from admin_sessions, so the
+    --admin panel's charts show history from before this pod started. Must
+    run before the server starts accepting connections (i.e. from this
+    --setup script) so it's in place before any real session, and before
+    _on_session_info_changed is registered, so nothing races against it.
+
+    Any restored row with ended IS NULL was, by definition, never cleanly
+    closed -- that connection can't still be open after a pod restart, so
+    it's marked ended here (both in memory and back in the DB) rather than
+    left looking permanently "live".
+    """
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        rows = conn.execute(
+            "SELECT session_id, launched, started, rendered, ended, user_agent FROM admin_sessions"
+        ).fetchall()
+
+        now = datetime.now(timezone.utc).timestamp()
+        sessions = {}
+        for session_id, launched, started, rendered, ended, user_agent in rows:
+            if ended is None:
+                # Can't still be open after a pod restart -- close it now.
+                ended = now
+                conn.execute("UPDATE admin_sessions SET ended = ? WHERE session_id = ?", (ended, session_id))
+            data = {
+                "launched": launched, "started": started, "rendered": rendered,
+                "ended": ended, "user_agent": user_agent,
+            }
+            sessions[session_id] = data
+            _last_known_sessions[session_id] = dict(data)
+        conn.commit()
+    finally:
+        conn.close()
+
+    if not sessions:
+        return
+    # Every restored session now has an 'ended' timestamp (see above), so
+    # none of them are "live" -- that count only grows again as new,
+    # actually-connected sessions come in after this point.
+    pn_state.session_info = {"total": len(sessions), "live": 0, "sessions": sessions}
+    log.info("Restored %d admin-panel session record(s) from %s", len(sessions), DB_PATH)
 
 
 def _init_prometheus() -> None:
@@ -235,6 +343,13 @@ def _lookup_geo(ip: str) -> dict:
 _work_queue: "queue.Queue" = queue.Queue(maxsize=1000)
 
 
+def _enqueue_session_upsert(session_id: str, session_data: dict) -> None:
+    try:
+        _work_queue.put_nowait(("session", session_id, session_data))
+    except queue.Full:
+        log.warning("request logging queue is full; dropping this admin-session update")
+
+
 def _process_queued_request(
     ts: str, method: str, path: str, status: int, duration_ms: float, ip: str
 ) -> None:
@@ -270,13 +385,37 @@ def _process_queued_request(
         conn.close()
 
 
+def _process_session_upsert(session_id: str, data: dict) -> None:
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO admin_sessions (session_id, launched, started, rendered, ended, user_agent) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(session_id) DO UPDATE SET "
+            "started=excluded.started, rendered=excluded.rendered, "
+            "ended=excluded.ended, user_agent=excluded.user_agent",
+            (
+                session_id, data.get("launched"), data.get("started"),
+                data.get("rendered"), data.get("ended"), data.get("user_agent"),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _worker_loop() -> None:
     while True:
-        ts, method, path, status, duration_ms, ip = _work_queue.get()
+        job = _work_queue.get()
         try:
-            _process_queued_request(ts, method, path, status, duration_ms, ip)
+            if job[0] == "request":
+                _, ts, method, path, status, duration_ms, ip = job
+                _process_queued_request(ts, method, path, status, duration_ms, ip)
+            elif job[0] == "session":
+                _, session_id, data = job
+                _process_session_upsert(session_id, data)
         except Exception:
-            log.exception("failed to record request")
+            log.exception("failed to record %s", job[0] if job else "queued item")
         finally:
             _work_queue.task_done()
 
@@ -298,7 +437,7 @@ class GeoAccessLogHandler(logging.Handler):
                 return
             ts = datetime.now(timezone.utc).isoformat()
             try:
-                _work_queue.put_nowait((ts, method, path, int(status), float(duration_ms), ip))
+                _work_queue.put_nowait(("request", ts, method, path, int(status), float(duration_ms), ip))
             except queue.Full:
                 log.warning("request logging queue is full; dropping this entry")
         except Exception:
@@ -306,9 +445,11 @@ class GeoAccessLogHandler(logging.Handler):
 
 
 _init_db()
+_load_persisted_sessions()
 _init_prometheus()
 _start_worker()
 resource_monitor.start_monitoring()
+pn_state.param.watch(_on_session_info_changed, "session_info")
 
 access_logger = logging.getLogger("tornado.access")
 access_logger.setLevel(logging.INFO)
