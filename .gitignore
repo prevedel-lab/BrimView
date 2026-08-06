@@ -5,7 +5,9 @@ my_cache.sqlite
 .env
 .venv
 .vscode
-.DS_store
+.DS_Store
 bls_examples/*
 src/pn_test.py
 .github/skills/*
+__pycache__
+*.pyc

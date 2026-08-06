@@ -5,12 +5,23 @@ Runs once, before the Panel/Bokeh server starts accepting connections.
 Hooks into Tornado's built-in `tornado.access` logger (which fires on every
 completed HTTP request) to record basic usage stats:
 
-  - timestamp, method, path, status, duration        -> SQLite
-  - country / city / org / isp / domain (from ipwho.is) -> SQLite AND Prometheus
+  - timestamp, method, path, status, duration, user_agent -> SQLite
+  - country / city / org / isp / domain (from ipwho.is)    -> SQLite AND Prometheus
 
 The client IP is used only in-memory, to query ipwho.is (https://ipwho.is),
 and is never written to disk, logged, or exposed as a metric label -- only
 the resulting fields below are kept.
+
+Tornado's default `tornado.access` line doesn't include the User-Agent
+header, so RequestHandler._request_summary is patched (see
+_patch_request_summary_with_ua, called near the bottom of this file,
+before the server starts accepting connections) to append it to the
+existing "METHOD URI (IP)" summary. That's the one targeted monkeypatch
+in this file -- everywhere else here avoids it (see the admin_sessions
+note below) -- because Tornado has no public per-request logging hook
+that's reachable from a --setup script; `log_function` has to be passed
+into Application(...) at construction time, which happens after this
+script runs.
 
 Everything that can be slow (the ipwho.is HTTP call, the SQLite write) runs
 on a single dedicated background thread, fed by a queue. `emit()` itself
@@ -82,6 +93,7 @@ from functools import lru_cache
 from urllib.parse import urlsplit
 
 import requests
+import tornado.web
 
 # panel serve is a console-script entry point, which (unlike `python
 # script.py`) does not add this script's own directory to sys.path -- so
@@ -120,7 +132,13 @@ _last_known_sessions: dict = {}
 
 # Tornado's default access-log line renders as e.g.:
 #   "200 GET /brimview/ (203.0.113.5) 12.34ms"
-_LOG_RE = re.compile(r"^(\d{3})\s+(\S+)\s+(.*)\s+\(([^)]+)\)\s+([\d.]+)ms$")
+# With _patch_request_summary_with_ua applied (see bottom of file), it
+# instead renders as:
+#   '200 GET /brimview/ (203.0.113.5) UA="Mozilla/5.0 (X11; Linux x86_64) ..." 12.34ms'
+# The UA group is `(.*)` greedily matched up to the *last* `" <duration>ms`
+# at the end of the line, so parentheses, quotes, or anything else inside
+# the user-agent string itself don't break the split.
+_LOG_RE = re.compile(r'^(\d{3})\s+(\S+)\s+(.*)\s+\(([^)]+)\)\s+UA="(.*)"\s+([\d.]+)ms$')
 
 # Only count the top-level page load, not static assets, the websocket
 # connection, or the /stats and /admin pages -- avoids treating every
@@ -174,7 +192,8 @@ def _init_db():
             city TEXT,
             organization TEXT,
             isp TEXT,
-            domain TEXT
+            domain TEXT,
+            user_agent TEXT
         )
         """
     )
@@ -351,7 +370,7 @@ def _enqueue_session_upsert(session_id: str, session_data: dict) -> None:
 
 
 def _process_queued_request(
-    ts: str, method: str, path: str, status: int, duration_ms: float, ip: str
+    ts: str, method: str, path: str, status: int, duration_ms: float, ip: str, user_agent: str
 ) -> None:
     ip_lookup_dict = _lookup_geo(ip)  # ip discarded after this line; never stored
 
@@ -374,9 +393,12 @@ def _process_queued_request(
     try:
         conn.execute(
             "INSERT INTO requests "
-            "(ts, method, path, status, duration_ms, country, country_code, city, organization, isp, domain) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (ts, method, path, status, duration_ms, country, country_code, city, organization, isp, domain),
+            "(ts, method, path, status, duration_ms, country, country_code, city, organization, isp, domain, user_agent) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                ts, method, path, status, duration_ms, country, country_code,
+                city, organization, isp, domain, user_agent,
+            ),
         )
         conn.commit()
         if random.random() < 0.001:  # ~1 in 1000 writes: cheap periodic prune
@@ -409,8 +431,8 @@ def _worker_loop() -> None:
         job = _work_queue.get()
         try:
             if job[0] == "request":
-                _, ts, method, path, status, duration_ms, ip = job
-                _process_queued_request(ts, method, path, status, duration_ms, ip)
+                _, ts, method, path, status, duration_ms, ip, user_agent = job
+                _process_queued_request(ts, method, path, status, duration_ms, ip, user_agent)
             elif job[0] == "session":
                 _, session_id, data = job
                 _process_session_upsert(session_id, data)
@@ -424,6 +446,41 @@ def _start_worker() -> None:
     threading.Thread(target=_worker_loop, name="request-logger-worker", daemon=True).start()
 
 
+def _patch_request_summary_with_ua() -> None:
+    """
+    Tornado's default Application.log_request() builds its access-log line
+    from RequestHandler._request_summary(), which is just "METHOD URI (IP)"
+    -- there's no User-Agent in it. Application.log_request() itself can be
+    replaced via the `log_function` setting, but that has to be passed into
+    Application(...) at construction time, which happens inside Panel/Bokeh
+    well after this --setup script has already run, so it isn't reachable
+    from here.
+
+    Patching _request_summary instead is the smallest surface that still
+    runs before the server starts accepting connections: it only changes
+    what text goes into the existing access-log line, so the log-level
+    selection (info/warning/error by status code) and everything else in
+    Application.log_request() is untouched. This has to happen exactly
+    once, before any request is served, which module-level `--setup`
+    execution guarantees, so there's no risk of double-patching.
+
+    The header is taken as-is (defaulting to "" if absent, e.g. some bots
+    don't send one) and only has embedded newlines/carriage returns
+    stripped, so a single access-log line can't be split into two -- no
+    other characters are removed, since the parenthesis-tolerant regex in
+    _LOG_RE (see above) doesn't need them to be.
+    """
+    original_request_summary = tornado.web.RequestHandler._request_summary
+
+    def _request_summary_with_ua(self) -> str:
+        summary = original_request_summary(self)
+        user_agent = self.request.headers.get("User-Agent", "")
+        user_agent = user_agent.replace("\n", " ").replace("\r", " ")
+        return f'{summary} UA="{user_agent}"'
+
+    tornado.web.RequestHandler._request_summary = _request_summary_with_ua
+
+
 class GeoAccessLogHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         # Everything in here must be fast and non-blocking: this runs
@@ -432,12 +489,14 @@ class GeoAccessLogHandler(logging.Handler):
             match = _LOG_RE.match(record.getMessage())
             if not match:
                 return
-            status, method, path, ip, duration_ms = match.groups()
+            status, method, path, ip, user_agent, duration_ms = match.groups()
             if not _is_counted_path(path):
                 return
             ts = datetime.now(timezone.utc).isoformat()
             try:
-                _work_queue.put_nowait(("request", ts, method, path, int(status), float(duration_ms), ip))
+                _work_queue.put_nowait(
+                    ("request", ts, method, path, int(status), float(duration_ms), ip, user_agent)
+                )
             except queue.Full:
                 log.warning("request logging queue is full; dropping this entry")
         except Exception:
@@ -447,6 +506,7 @@ class GeoAccessLogHandler(logging.Handler):
 _init_db()
 _load_persisted_sessions()
 _init_prometheus()
+_patch_request_summary_with_ua()
 _start_worker()
 resource_monitor.start_monitoring()
 pn_state.param.watch(_on_session_info_changed, "session_info")
